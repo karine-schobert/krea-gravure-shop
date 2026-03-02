@@ -1,4 +1,5 @@
 <?php
+// Route controlller Front/home 
 
 namespace App\Controller\Front;
 

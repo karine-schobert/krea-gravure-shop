@@ -42,3 +42,7 @@ Thumbs.db
 ###> documentation ###
 doc/sprint
 ###> documentation ###
+
+# Debug controllers (dev only)
+src/Controller/Debug/
+# Debug controllers (dev only)

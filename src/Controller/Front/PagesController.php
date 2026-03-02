@@ -1,5 +1,6 @@
 <?php
-
+// Route controlller Front/PagesController
+// Mentions-légales
 namespace App\Controller\Front;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

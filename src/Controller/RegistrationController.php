@@ -15,6 +15,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
+//Route register
 class RegistrationController extends AbstractController
 {
     #[Route('/register', name: 'app_register')]

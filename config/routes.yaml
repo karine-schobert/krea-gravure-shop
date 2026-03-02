@@ -1,3 +1,4 @@
+# config/packages/route.yaml
 controllers:
     resource:
         path: ../src/Controller/
