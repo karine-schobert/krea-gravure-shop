@@ -38,3 +38,7 @@ Thumbs.db
 .vscode/
 *.swp
 ###< IDE / OS ###
+
+###> documentation ###
+docs/sprints
+###> documentation ###
