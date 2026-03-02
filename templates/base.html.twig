@@ -1,17 +1,47 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
+  <head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Krea-Gravure {% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
 
-        {% block javascripts %}
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
-        {% endblock %}
-    </head>
-    <body>
-        {% block body %}{% endblock %}
-    </body>
+    {% block stylesheets %}{% endblock %}
+
+    {% block javascripts %}
+      {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% endblock %}
+  </head>
+
+  <body>
+    <header style="padding:12px 16px; border-bottom:1px solid #ddd; display:flex; gap:12px; align-items:center; justify-content:space-between;">
+      <div>
+        <strong>Krea-Gravure</strong>
+      </div>
+
+      <nav style="display:flex; gap:10px; align-items:center;">
+        {% if app.user %}
+          <span style="opacity:.8;">{{ app.user.userIdentifier }}</span>
+
+          <form method="post" action="{{ path('app_logout') }}" style="display:inline;">
+            <button type="submit">Déconnexion</button>
+          </form>
+        {% else %}
+          <a href="{{ path('app_login') }}">Connexion</a>
+          <a href="{{ path('app_register') }}">Inscription</a>
+        {% endif %}
+      </nav>
+    </header>
+
+    <main style="padding:16px;">
+      {% for label, messages in app.flashes %}
+        {% for message in messages %}
+          <div style="padding:10px 12px; margin:0 0 10px; border:1px solid #ddd; border-radius:6px;">
+            <strong>{{ label|capitalize }}:</strong> {{ message }}
+          </div>
+        {% endfor %}
+      {% endfor %}
+
+      {% block body %}{% endblock %}
+    </main>
+  </body>
 </html>
