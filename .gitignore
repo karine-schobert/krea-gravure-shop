@@ -1,0 +1,40 @@
+###> symfony/framework-bundle ###
+# Env files: keep .env, .env.dev, .env.test in git
+/.env.local
+/.env.local.php
+/.env.*.local
+
+# Secrets (prod)
+/config/secrets/prod/prod.decrypt.private.php
+
+# Build & runtime
+/var/
+/vendor/
+/public/bundles/
+###< symfony/framework-bundle ###
+
+###> symfony/asset-mapper ###
+/public/assets/
+/assets/vendor/
+###< symfony/asset-mapper ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
+
+###> symfony/phpunit-bridge ###
+/.phpunit.result.cache
+###< symfony/phpunit-bridge ###
+
+###> Symfony CLI ###
+/.symfony.local.yaml
+###< Symfony CLI ###
+
+###> IDE / OS ###
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+###< IDE / OS ###
