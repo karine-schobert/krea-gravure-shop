@@ -1,0 +1,10 @@
+framework:
+  rate_limiter:
+    login:
+      policy: 'sliding_window'
+      limit: 8
+      interval: '1 minute'
+    register:
+      policy: 'sliding_window'
+      limit: 5
+      interval: '10 minutes'
