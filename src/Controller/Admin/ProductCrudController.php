@@ -19,6 +19,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\BooleanFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 
 class ProductCrudController extends AbstractCrudController
 {
@@ -75,17 +76,19 @@ class ProductCrudController extends AbstractCrudController
 
         $createdAt = DateTimeField::new('createdAt', 'Créé le')
             ->setFormTypeOption('disabled', true);
+        
+       $category = AssociationField::new('category', 'Catégorie'); 
 
         if (Crud::PAGE_INDEX === $pageName) {
-            return [$id, $title, $price, $isActive, $createdAt];
+            return [$id, $title, $category, $price, $isActive, $createdAt];
         }
 
         if (Crud::PAGE_DETAIL === $pageName) {
-            return [$id, $title, $slug, $description, $price, $isActive, $createdAt];
+         return [$id, $title, $slug, $category, $description, $price, $isActive, $createdAt];
         }
 
         // NEW / EDIT
-        return [$title, $slug, $description, $price, $isActive, $createdAt];
+       return [$title, $slug, $category, $description, $price, $isActive, $createdAt];
     }
 
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
