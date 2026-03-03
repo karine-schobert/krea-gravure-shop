@@ -15,7 +15,6 @@ class DashboardController extends AbstractDashboardController
 {
     public function index(): Response
     {
-        // ✅ Redirection automatique vers la liste des produits
         /** @var AdminUrlGenerator $adminUrlGenerator */
         $adminUrlGenerator = $this->container->get(AdminUrlGenerator::class);
 
@@ -45,7 +44,12 @@ class DashboardController extends AbstractDashboardController
             ->setAction(Action::INDEX)
             ->generateUrl();
 
-        // ✅ Menu Produits (compatible même si linkToCrud n'existe pas)
+        $categoryUrl = $adminUrlGenerator
+            ->setController(CategoryCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
+
         yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
+        yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
     }
 }

@@ -41,8 +41,12 @@ Thumbs.db
 
 ###> documentation ###
 doc/sprint
-###> documentation ###
+###< documentation ###
 
-# Debug controllers (dev only)
+###> Debug controllers (dev only)###
 src/Controller/Debug/
-# Debug controllers (dev only)
+###< Debug controllers (dev only)###
+
+###> Dossier upload d image 
+/public/uploads/*
+###< Dossier upload d image 
