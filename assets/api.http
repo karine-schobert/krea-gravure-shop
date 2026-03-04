@@ -1,0 +1,19 @@
+@baseUrl = http://127.0.0.1:8000
+
+### GET - Categories
+GET {{baseUrl}}/api/categories
+
+### GET - Products (list)
+GET {{baseUrl}}/api/products
+
+### GET - Products (list) page/limit
+GET {{baseUrl}}/api/products?page=1&limit=12
+
+### GET - Products by Category (bijoux)
+GET {{baseUrl}}/api/categories/bijoux/products
+
+### GET - Category products (deco)
+GET {{baseUrl}}/api/categories/deco/products
+
+### GET - Product by slug (example)
+GET {{baseUrl}}/api/products/marque-page-floralys-marguerite
