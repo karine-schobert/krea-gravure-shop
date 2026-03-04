@@ -19,32 +19,37 @@ class ProductApiController extends AbstractController
 
     /**
      * ✅ GET /api/products
-     * Liste des produits PUBLICS (actifs uniquement), tri id DESC
+     * Supporte :
+     * - ?page=1&limit=12
+     * - ?category=bijoux
      *
      * Retour :
-     * [
-     *   {
-     *     id, title, slug, priceCents,
-     *     imageUrl,
-     *     category: { id, name, slug }
-     *   },
-     *   ...
-     * ]
+     * { items: [...], meta: {...} }
      */
     #[Route('/api/products', name: 'api_products_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
-        // Public = actifs uniquement
-        $products = $this->repo->findAllActiveWithCategoryDesc();
+        $request = $this->requestStack->getCurrentRequest();
+
+        $page = (int) ($request?->query->get('page', 1) ?? 1);
+        $limit = (int) ($request?->query->get('limit', 12) ?? 12);
+        $category = $request?->query->get('category'); // slug catégorie optionnel
+
+        $result = $this->repo->findActivePaginated($category ?: null, $page, $limit);
 
         $base = $this->getBaseUrl();
+        $items = array_map(fn(Product $p) => $this->toArray($p, $base), $result['items']);
 
-        $data = array_map(
-            fn(Product $p) => $this->toArray($p, $base),
-            $products
-        );
-
-        return $this->json($data);
+        return $this->json([
+            'items' => $items,
+            'meta' => [
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'limit' => $result['limit'],
+                'pages' => $result['pages'],
+                'category' => $category ?: null,
+            ],
+        ]);
     }
 
     /**
@@ -124,4 +129,6 @@ class ProductApiController extends AbstractController
             // 'isActive' => $p->isActive(),
         ];
     }
+
+ 
 }

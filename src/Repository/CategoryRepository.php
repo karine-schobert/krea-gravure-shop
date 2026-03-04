@@ -7,6 +7,10 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
+ * CategoryRepository
+ *
+ * Centralise les requêtes Doctrine pour l'entité Category.
+ *
  * @extends ServiceEntityRepository<Category>
  */
 class CategoryRepository extends ServiceEntityRepository
@@ -16,28 +20,32 @@ class CategoryRepository extends ServiceEntityRepository
         parent::__construct($registry, Category::class);
     }
 
-    //    /**
-    //     * @return Category[] Returns an array of Category objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('c')
-    //            ->andWhere('c.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('c.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    /**
+     * ✅ Récupère une catégorie via son slug
+     * Utilisé typiquement par :
+     * - GET /api/categories/{slug}
+     * - GET /api/categories/{slug}/products
+     */
+    public function findOneBySlug(string $slug): ?Category
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.slug = :slug')
+            ->setParameter('slug', $slug)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 
-    //    public function findOneBySomeField($value): ?Category
-    //    {
-    //        return $this->createQueryBuilder('c')
-    //            ->andWhere('c.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    /**
+     * ✅ Liste toutes les catégories triées par id DESC
+     * Utilisé typiquement par : GET /api/categories
+     *
+     * @return Category[]
+     */
+    public function findAllDesc(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->orderBy('c.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

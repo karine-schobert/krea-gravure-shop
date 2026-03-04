@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\Product;
+use App\Entity\Category;
 use App\Repository\CategoryRepository;
 use App\Repository\ProductRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -29,7 +30,7 @@ class CategoryApiController extends AbstractController
         $categories = $repo->findBy([], ['id' => 'DESC']);
 
         $data = array_map(function ($c) {
-            /** @var \App\Entity\Category $c */
+            /** @var Category $c */
             return [
                 'id' => $c->getId(),
                 'name' => $c->getName(),
@@ -76,8 +77,11 @@ class CategoryApiController extends AbstractController
      * ✅ GET /api/categories/{slug}/products
      * Produits actifs d'une catégorie (via slug)
      *
+     * Supporte pagination :
+     * - ?page=1&limit=12
+     *
      * Exemple :
-     * /api/categories/bijoux/products
+     * /api/categories/bijoux/products?page=1&limit=12
      *
      * Retour :
      * {
@@ -85,7 +89,8 @@ class CategoryApiController extends AbstractController
      *   products: [
      *     { id, title, slug, priceCents, imageUrl, imagePath, category: {...} },
      *     ...
-     *   ]
+     *   ],
+     *   meta: { total, page, limit, pages }
      * }
      */
     #[Route('/api/categories/{slug}/products', name: 'api_categories_products', methods: ['GET'])]
@@ -101,8 +106,13 @@ class CategoryApiController extends AbstractController
             return $this->json(['message' => 'Category not found'], Response::HTTP_NOT_FOUND);
         }
 
-        // Produits actifs de cette catégorie (méthode repo qu'on a ajoutée)
-        $products = $productRepo->findAllActiveByCategorySlugDesc($slug);
+        // ✅ Pagination (hors du array_map)
+        $page = (int) $request->query->get('page', 1);
+        $limit = (int) $request->query->get('limit', 12);
+
+        // ✅ Produits actifs paginés, filtrés par category slug
+        $result = $productRepo->findActivePaginated($slug, $page, $limit);
+        $products = $result['items'];
 
         $base = $request->getSchemeAndHttpHost();
 
@@ -131,7 +141,13 @@ class CategoryApiController extends AbstractController
                 'name' => $category->getName(),
                 'slug' => $category->getSlug(),
             ],
-            'products' => $items,
+            'items' => $items,
+            'meta' => [
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'limit' => $result['limit'],
+                'pages' => $result['pages'],
+            ],
         ]);
     }
 }

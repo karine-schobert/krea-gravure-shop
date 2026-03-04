@@ -88,4 +88,50 @@ class ProductRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+     /**
+     * ✅ Produits actifs paginés, filtre optionnel par catégorie (slug)
+     *
+     * @return array{items: Product[], total:int, page:int, limit:int, pages:int}
+     */
+    public function findActivePaginated(?string $categorySlug, int $page, int $limit): array
+    {
+        $page = max(1, $page);
+        $limit = max(1, min(100, $limit));
+        $offset = ($page - 1) * $limit;
+
+        $qb = $this->createQueryBuilder('p')
+            ->leftJoin('p.category', 'c')->addSelect('c')
+            ->andWhere('p.isActive = :active')
+                ->setParameter('active', true);
+
+        if ($categorySlug) {
+            $qb->andWhere('c.slug = :cslug')
+                ->setParameter('cslug', $categorySlug);
+        }
+
+        // Total count
+        $countQb = clone $qb;
+        $total = (int) $countQb
+            ->select('COUNT(p.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // Items
+        $items = $qb
+            ->orderBy('p.id', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        $pages = (int) max(1, (int) ceil($total / $limit));
+
+        return [
+            'items' => $items,
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'pages' => $pages,
+        ];
+}
 }
