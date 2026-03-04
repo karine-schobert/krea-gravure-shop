@@ -3,6 +3,7 @@
 /.env.local
 /.env.local.php
 /.env.*.local
+/.env.prod
 
 # Secrets (prod)
 /config/secrets/prod/prod.decrypt.private.php
