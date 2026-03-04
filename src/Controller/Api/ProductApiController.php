@@ -17,20 +17,54 @@ class ProductApiController extends AbstractController
         private readonly RequestStack $requestStack,
     ) {}
 
+    /**
+     * ✅ GET /api/products
+     * Liste des produits PUBLICS (actifs uniquement), tri id DESC
+     *
+     * Retour :
+     * [
+     *   {
+     *     id, title, slug, priceCents,
+     *     imageUrl,
+     *     category: { id, name, slug }
+     *   },
+     *   ...
+     * ]
+     */
     #[Route('/api/products', name: 'api_products_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
-        // ✅ choisis l’une des deux lignes :
-        // $products = $this->repo->findAllWithCategoryDesc(); // tout
-        $products = $this->repo->findAllActiveWithCategoryDesc(); // public: actifs uniquement
+        // Public = actifs uniquement
+        $products = $this->repo->findAllActiveWithCategoryDesc();
 
         $base = $this->getBaseUrl();
 
-        $data = array_map(fn(Product $p) => $this->toArray($p, $base), $products);
+        $data = array_map(
+            fn(Product $p) => $this->toArray($p, $base),
+            $products
+        );
 
         return $this->json($data);
     }
 
+    /**
+     * ✅ GET /api/products/{slug}
+     * Détail d’un produit PUBLIC (actif uniquement), via son slug
+     *
+     * Exemple :
+     * /api/products/boucle-d-oreille-chic-noir-aile-boisee
+     *
+     * Retour :
+     * {
+     *   id, title, slug, priceCents,
+     *   imageUrl,
+     *   category: { id, name, slug }
+     * }
+     *
+     * ⚠️ On renvoie 404 si :
+     * - slug inconnu
+     * - produit inactif (caché en public)
+     */
     #[Route(
         '/api/products/{slug}',
         name: 'api_products_show',
@@ -51,32 +85,43 @@ class ProductApiController extends AbstractController
         return $this->json($this->toArray($product, $base));
     }
 
+    /**
+     * Récupère l'URL de base (http://127.0.0.1:8000) pour construire imageUrl
+     * En CLI/tests, pas de requête HTTP => renvoie '' (sécurité)
+     */
     private function getBaseUrl(): string
     {
         $request = $this->requestStack->getCurrentRequest();
-
-        // en CLI/tests, pas de requête HTTP
-        if (!$request) {
-            return '';
-        }
-
-        return $request->getSchemeAndHttpHost();
+        return $request ? $request->getSchemeAndHttpHost() : '';
     }
 
+    /**
+     * Transforme un Product en tableau JSON stable pour le front (Next)
+     */
     private function toArray(Product $p, string $base): array
     {
         $imagePath = $p->getImagePath();
+        $cat = $p->getCategory();
 
         return [
             'id' => $p->getId(),
             'title' => $p->getTitle(),
             'slug' => $p->getSlug(),
             'priceCents' => $p->getPriceCents(),
-            'isActive' => $p->isActive(),
-            'category' => $p->getCategory()?->getName(),
-            'categoryId' => $p->getCategory()?->getId(),
+
+            // Images
             'imageUrl' => $imagePath ? $base . $imagePath : null,
             'imagePath' => $imagePath,
+
+            // Category objet (cohérent avec /api/categories/{slug}/products)
+            'category' => $cat ? [
+                'id' => $cat->getId(),
+                'name' => $cat->getName(),
+                'slug' => $cat->getSlug(),
+            ] : null,
+
+            // 🔒 optionnel en public (à éviter si tu veux une API clean)
+            // 'isActive' => $p->isActive(),
         ];
     }
 }
