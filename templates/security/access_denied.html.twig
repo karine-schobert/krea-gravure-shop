@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Accès refusé{% endblock %}
+
+{% block body %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4 text-center">
+
+          <div class="display-6 fw-bold mb-2">403</div>
+          <h1 class="h4 mb-2">Accès refusé</h1>
+          <p class="text-muted mb-4">
+            Tu n’as pas les droits nécessaires pour accéder à cette page.
+          </p>
+
+          {% if app.user %}
+            <div class="alert alert-light border small text-start">
+              <div><strong>Compte :</strong> {{ app.user.userIdentifier }}</div>
+              <div class="mt-2">
+                <strong>Rôles :</strong>
+                {% for r in app.user.roles %}
+                  <span class="badge text-bg-secondary me-1">{{ r }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <div class="alert alert-warning small">
+              Tu n’es pas connecté. Connecte-toi puis réessaie.
+            </div>
+          {% endif %}
+
+          <div class="d-flex gap-2 justify-content-center mt-3">
+            <a href="/" class="btn btn-outline-dark">Retour accueil</a>
+
+            {% if app.user %}
+              <form method="post" action="{{ path('app_logout') }}">
+                <button type="submit" class="btn btn-dark">Se déconnecter</button>
+              </form>
+            {% else %}
+              <a href="{{ path('app_login') }}" class="btn btn-dark">Se connecter</a>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+
+      <div class="text-center mt-3 text-muted small">
+        © {{ "now"|date("Y") }} Krea-Gravure
+      </div>
+
+    </div>
+  </div>
+{% endblock %}

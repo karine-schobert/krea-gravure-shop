@@ -4,11 +4,15 @@ namespace App\DataFixtures;
 
 use App\Entity\Category;
 use App\Entity\Product;
+use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class AppFixtures extends Fixture
 {
+    public function __construct(private UserPasswordHasherInterface $hasher) {}
+
     public function load(ObjectManager $manager): void
     {
         // =========================
@@ -122,18 +126,40 @@ class AppFixtures extends Fixture
         ];
 
         foreach ($products as $data) {
-            $p = new Product();
-            $p->setTitle($data['title'])
-              ->setSlug($data['slug'])
-              ->setDescription($data['description'])
-              ->setPriceCents($data['priceCents'])
-              ->setIsActive(true)
-              ->setCategory($data['category'])
-              ->setImage($data['image']);
+            $p = (new Product())
+                ->setTitle($data['title'])
+                ->setSlug($data['slug'])
+                ->setDescription($data['description'])
+                ->setPriceCents($data['priceCents'])
+                ->setIsActive(true)
+                ->setCategory($data['category'])
+                ->setImage($data['image']);
 
             $manager->persist($p);
         }
 
+        // =========================
+        // 3) Users (Admin + 2 clients)
+        // =========================
+        $admin = (new User())
+            ->setEmail('admin@krea.local')
+            ->setRoles(['ROLE_ADMIN']);
+        $admin->setPassword($this->hasher->hashPassword($admin, 'Admin123!'));
+        $manager->persist($admin);
+
+        $client1 = (new User())
+            ->setEmail('client1@krea.local')
+            ->setRoles(['ROLE_USER']);
+        $client1->setPassword($this->hasher->hashPassword($client1, 'Client123!'));
+        $manager->persist($client1);
+
+        $client2 = (new User())
+            ->setEmail('client2@krea.local')
+            ->setRoles(['ROLE_USER']);
+        $client2->setPassword($this->hasher->hashPassword($client2, 'Client123!'));
+        $manager->persist($client2);
+
+        // ✅ 1 seul flush
         $manager->flush();
     }
 }
