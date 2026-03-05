@@ -51,8 +51,15 @@ class DashboardController extends AbstractDashboardController
             ->setController(CategoryCrudController::class)
             ->setAction(Action::INDEX)
             ->generateUrl();
+            
+        $userUrl = $adminUrlGenerator
+            ->setController(UserCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
+
 
         yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
         yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
+        yield MenuItem::linkToUrl('Users', 'fa fa-users', $userUrl);
     }
 }
