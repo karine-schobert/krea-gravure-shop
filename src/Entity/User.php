@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -38,7 +40,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * Rôles en base (ex: ["ROLE_ADMIN"])
      *
-     * ⚠️ Note : ROLE_USER est ajouté automatiquement dans getRoles()
+     * ROLE_USER est ajouté automatiquement dans getRoles()
      *
      * @var list<string>
      */
@@ -47,8 +49,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     /**
      * Mot de passe hashé (jamais stocker en clair)
-     *
-     * @var string|null
      */
     #[ORM\Column]
     private ?string $password = null;
@@ -59,10 +59,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * Utilisé uniquement :
      * - par les formulaires (EasyAdmin / registration)
      * - puis hashé pour alimenter $password
-     *
-     * ⚠️ Ne JAMAIS mapper en Doctrine, sinon tu stockes du clair.
      */
     private ?string $plainPassword = null;
+
+    /**
+     * Liste des commandes liées à cet utilisateur
+     *
+     * @var Collection<int, Order>
+     */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Order::class)]
+    private Collection $orders;
+
+    public function __construct()
+    {
+        $this->orders = new ArrayCollection();
+    }
 
     /**
      * Retourne l'ID utilisateur
@@ -90,8 +101,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Identifiant "visible" pour Symfony Security.
-     * Ici on utilise l'email.
+     * Identifiant utilisé par Symfony Security
      */
     public function getUserIdentifier(): string
     {
@@ -99,8 +109,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Alias pratique : quand EasyAdmin ou Symfony doit afficher un User
-     * (ex: dans une relation), ça affiche l'email.
+     * Affichage pratique dans EasyAdmin / relations
      */
     public function __toString(): string
     {
@@ -108,22 +117,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Retourne les rôles.
-     *
-     * - On garantit toujours ROLE_USER même si non stocké en base.
+     * Retourne les rôles
      */
     public function getRoles(): array
     {
         $roles = $this->roles;
-
-        // Garantie : tout user a au minimum ROLE_USER
         $roles[] = 'ROLE_USER';
 
         return array_unique($roles);
     }
 
     /**
-     * Définit les rôles en base.
+     * Définit les rôles en base
      *
      * @param list<string> $roles
      */
@@ -134,7 +139,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Retourne le mot de passe hashé (stocké en base)
+     * Retourne le mot de passe hashé
      */
     public function getPassword(): ?string
     {
@@ -142,9 +147,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Définit le mot de passe hashé (stocké en base)
-     *
-     * ⚠️ Doit recevoir un HASH (jamais du clair).
+     * Définit le mot de passe hashé
      */
     public function setPassword(string $password): static
     {
@@ -153,8 +156,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Retourne le mot de passe en clair (NON persisté)
-     * Sert uniquement pour formulaire, puis hash.
+     * Retourne le mot de passe en clair (non persisté)
      */
     public function getPlainPassword(): ?string
     {
@@ -162,7 +164,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Définit le mot de passe en clair (NON persisté)
+     * Définit le mot de passe en clair (non persisté)
      */
     public function setPlainPassword(?string $plainPassword): static
     {
@@ -171,13 +173,39 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Nettoyage des données sensibles temporaires.
-     *
-     * Symfony appelle cette méthode après l'auth ou quand nécessaire.
-     * Ici on efface le plainPassword pour éviter qu'il traîne en mémoire.
+     * Nettoyage des données sensibles temporaires
      */
     public function eraseCredentials(): void
     {
         $this->plainPassword = null;
+    }
+
+    /**
+     * @return Collection<int, Order>
+     */
+    public function getOrders(): Collection
+    {
+        return $this->orders;
+    }
+
+    public function addOrder(Order $order): static
+    {
+        if (!$this->orders->contains($order)) {
+            $this->orders->add($order);
+            $order->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeOrder(Order $order): static
+    {
+        if ($this->orders->removeElement($order)) {
+            if ($order->getUser() === $this) {
+                $order->setUser(null);
+            }
+        }
+
+        return $this;
     }
 }

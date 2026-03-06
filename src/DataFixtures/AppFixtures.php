@@ -5,13 +5,17 @@ namespace App\DataFixtures;
 use App\Entity\Category;
 use App\Entity\Product;
 use App\Entity\User;
+use App\Entity\Order;
+use App\Entity\OrderItem;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class AppFixtures extends Fixture
 {
-    public function __construct(private UserPasswordHasherInterface $hasher) {}
+    public function __construct(private UserPasswordHasherInterface $hasher)
+    {
+    }
 
     public function load(ObjectManager $manager): void
     {
@@ -38,7 +42,6 @@ class AppFixtures extends Fixture
         // 2) Produits (10)
         // =========================
         $products = [
-            // Bijoux (4)
             [
                 'title' => "Boucles d’oreilles Naturelle — Feuille",
                 'slug'  => "boucles-oreilles-naturelle-feuille",
@@ -71,8 +74,6 @@ class AppFixtures extends Fixture
                 'image' => "placeholder-4.jpg",
                 'category' => $catBijoux,
             ],
-
-            // Déco (4)
             [
                 'title' => "Dessous de verre — C’est la vie",
                 'slug'  => "dessous-de-verre-cest-la-vie",
@@ -105,8 +106,6 @@ class AppFixtures extends Fixture
                 'image' => "placeholder-8.jpg",
                 'category' => $catDeco,
             ],
-
-            // Lecture (2)
             [
                 'title' => "Marque-page — Floralys Lavande",
                 'slug'  => "marque-page-floralys-lavande",
@@ -125,6 +124,8 @@ class AppFixtures extends Fixture
             ],
         ];
 
+        $persistedProducts = [];
+
         foreach ($products as $data) {
             $p = (new Product())
                 ->setTitle($data['title'])
@@ -136,6 +137,7 @@ class AppFixtures extends Fixture
                 ->setImage($data['image']);
 
             $manager->persist($p);
+            $persistedProducts[] = $p;
         }
 
         // =========================
@@ -159,7 +161,81 @@ class AppFixtures extends Fixture
         $client2->setPassword($this->hasher->hashPassword($client2, 'Client123!'));
         $manager->persist($client2);
 
-        // ✅ 1 seul flush
-        $manager->flush();
-    }
+        // =========================
+        // 4) Commande test
+        // =========================
+        // Commande une
+        $order = new Order();
+        $order->setUser($client1);
+        $order->setEmail($client1->getEmail());
+        $order->setStatus(Order::STATUS_PENDING_PAYMENT);
+        $order->setCurrency('eur');
+
+        $product1 = $persistedProducts[0] ?? null;
+        $product2 = $persistedProducts[4] ?? null;
+
+        $totalCents = 0;
+        
+        // Produit 1
+        if ($product1) {
+           $item1 = new OrderItem();
+            $item1->setProduct($product1);
+            $item1->setProductTitle($product1->getTitle());
+            $item1->setUnitPriceCents($product1->getPriceCents());
+            $item1->setQuantity(1);
+            $item1->setLineTotalCents($product1->getPriceCents() * 1);
+
+            $order->addItem($item1);
+            $totalCents += $product1->getPriceCents() * 1;
+        }
+
+        // Produit 2
+        if ($product2) {
+            $item2 = new OrderItem();
+            $item2->setProduct($product2);
+            $item2->setProductTitle($product2->getTitle());
+            $item2->setUnitPriceCents($product2->getPriceCents());
+            $item2->setQuantity(2);
+            $item2->setLineTotalCents($product2->getPriceCents() * 2);
+
+            $order->addItem($item2);
+            $totalCents += $product2->getPriceCents() * 2;
+        }
+
+        $order->setTotalCents($totalCents);
+
+        $manager->persist($order);
+
+        // Commande deux
+        $order2 = new Order();
+        $order2->setUser($client2);
+        $order2->setEmail($client2->getEmail());
+        $order2->setStatus(Order::STATUS_PAID);
+        $order2->setCurrency('eur');
+
+        $totalCents2 = 0;
+
+        $product3 = $persistedProducts[2] ?? null;
+
+        
+        if ($product3) {
+            $item3 = new OrderItem();
+            $item3->setProduct($product3);
+            $item3->setProductTitle($product3->getTitle());
+            $item3->setUnitPriceCents($product3->getPriceCents());
+            $item3->setQuantity(1);
+            $item3->setLineTotalCents($product3->getPriceCents());
+
+            $order2->addItem($item3);
+            $totalCents2 += $product3->getPriceCents();
+        }
+
+        $order2->setTotalCents($totalCents2);
+        $manager->persist($order2);
+
+                // =========================
+                // Flush final
+                // =========================
+                $manager->flush();
+            }
 }
