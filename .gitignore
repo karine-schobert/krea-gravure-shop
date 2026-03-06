@@ -51,3 +51,6 @@ src/Controller/Debug/
 ###> Dossier upload d image 
 /public/uploads/*
 ###< Dossier upload d image 
+###> lexik/jwt-authentication-bundle ###
+/config/jwt/*.pem
+###< lexik/jwt-authentication-bundle ###

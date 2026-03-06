@@ -1,0 +1,99 @@
+@baseUrl = http://127.0.0.1:8000
+@json = application/json
+
+### HEALTH
+GET {{baseUrl}}/api/health
+Accept: {{json}}
+
+### PRODUCTS - liste
+GET {{baseUrl}}/api/products
+Accept: {{json}}
+
+### PRODUCTS - détail
+GET {{baseUrl}}/api/products/boucles-oreilles-naturelle-feuille
+Accept: {{json}}
+
+### PRODUCTS - détail 2
+GET {{baseUrl}}/api/products/dessous-de-verre-cest-la-vie
+Accept: {{json}}
+
+### PRODUCTS - détail 3
+GET {{baseUrl}}/api/products/marque-page-floralys-lavande
+Accept: {{json}}
+
+### CATEGORIES PRODUCTS - bijoux
+GET {{baseUrl}}/api/categories/bijoux/products
+Accept: {{json}}
+
+### CATEGORIES PRODUCTS - deco
+GET {{baseUrl}}/api/categories/deco/products
+Accept: {{json}}
+
+### CATEGORIES PRODUCTS - lecture
+GET {{baseUrl}}/api/categories/lecture/products
+Accept: {{json}}
+
+### PRODUCTS - liste
+GET {{baseUrl}}/api/products
+Accept: {{json}}
+
+### PRODUCTS - détail
+GET {{baseUrl}}/api/products/boucles-oreilles-naturelle-feuille
+Accept: {{json}}
+
+### PRODUCTS - détail 2
+GET {{baseUrl}}/api/products/dessous-de-verre-cest-la-vie
+Accept: {{json}}
+
+### PRODUCTS - détail 3
+GET {{baseUrl}}/api/products/marque-page-floralys-lavande
+Accept: {{json}}
+
+### CATEGORIES PRODUCTS - bijoux
+GET {{baseUrl}}/api/categories/bijoux/products
+Accept: {{json}}
+
+### CATEGORIES PRODUCTS - deco
+GET {{baseUrl}}/api/categories/deco/products
+Accept: {{json}}
+
+### CATEGORIES PRODUCTS - lecture
+GET {{baseUrl}}/api/categories/lecture/products
+Accept: {{json}}
+
+### LOGIN ADMIN
+# @name loginAdmin
+POST {{baseUrl}}/api/login_check
+Content-Type: application/json
+Accept: {{json}}
+
+{
+  "email": "admin@krea.local",
+  "password": "Admin123!"
+}
+
+### PRIVATE PING ADMIN
+GET {{baseUrl}}/api/private/ping
+Accept: {{json}}
+Authorization: Bearer {{loginAdmin.response.body.token}}
+
+
+
+### LOGIN JWT
+# @name loginClient
+POST {{baseUrl}}/api/login_check
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "client1@krea.local",
+  "password": "Client123!"
+}
+
+### CHECKOUT STRIPE
+POST {{baseUrl}}/api/checkout/session/3
+Accept: {{json}}
+Content-Type: {{json}}
+Authorization: Bearer {{loginClient.response.body.token}}
+
+{}
