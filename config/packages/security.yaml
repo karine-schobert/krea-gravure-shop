@@ -43,10 +43,15 @@ security:
         path: /
 
   access_control:
+    - { path: ^/api/stripe/webhook$, roles: PUBLIC_ACCESS }
     - { path: ^/api/login_check, roles: PUBLIC_ACCESS }
     - { path: ^/api/health, roles: PUBLIC_ACCESS }
+
     - { path: ^/api/products, roles: PUBLIC_ACCESS }
+    - { path: ^/api/categories$, roles: PUBLIC_ACCESS }
+    - { path: ^/api/categories/[a-z0-9-]+$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/.+/products$, roles: PUBLIC_ACCESS }
+
     - { path: ^/api/checkout/session, roles: IS_AUTHENTICATED_FULLY }
     - { path: ^/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private, roles: ROLE_ADMIN }

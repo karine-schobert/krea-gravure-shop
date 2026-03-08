@@ -52,8 +52,14 @@ class StripeCheckoutService
             'line_items' => $lineItems,
             'success_url' => $this->frontendUrl . '/checkout/success?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => $this->frontendUrl . '/checkout/cancel',
+            'client_reference_id' => (string) $order->getId(),
             'metadata' => [
                 'order_id' => (string) $order->getId(),
+            ],
+            'payment_intent_data' => [
+                'metadata' => [
+                    'order_id' => (string) $order->getId(),
+                ],
             ],
         ]);
     }

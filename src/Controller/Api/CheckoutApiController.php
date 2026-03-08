@@ -14,22 +14,14 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/api/checkout', name: 'api_checkout_')]
 class CheckoutApiController extends AbstractController
 {
-    /**
-     * Crée une session Stripe Checkout pour une commande existante.
-     *
-     * Conditions :
-     * - utilisateur connecté
-     * - commande appartenant à l'utilisateur
-     * - statut PENDING_PAYMENT
-     * - commande non vide
-     */
     #[Route('/session/{id}', name: 'session', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
     public function createSession(
         Order $order,
         StripeCheckoutService $stripeCheckoutService,
-        EntityManagerInterface $entityManager,
+        EntityManagerInterface $entityManager
     ): JsonResponse {
+
         /** @var User|null $user */
         $user = $this->getUser();
 
@@ -39,38 +31,43 @@ class CheckoutApiController extends AbstractController
             ], 401);
         }
 
-        // Sécurité : la commande doit appartenir à l'utilisateur connecté
+        // Sécurité : la commande doit appartenir à l'utilisateur
         if ($order->getUser() !== $user) {
             return $this->json([
                 'error' => 'Commande non autorisée',
             ], 403);
         }
 
-        // On n'autorise le paiement que sur une commande en attente
+        // La commande doit être payable
         if ($order->getStatus() !== Order::STATUS_PENDING_PAYMENT) {
             return $this->json([
-                'error' => 'Statut de commande invalide',
+                'error' => 'Commande non payable',
             ], 400);
         }
 
-        // Sécurité : impossible de payer une commande vide
+        // Impossible de payer une commande vide
         if ($order->getItems()->isEmpty()) {
             return $this->json([
                 'error' => 'Commande vide',
             ], 400);
         }
 
-        // Création de la session Stripe Checkout
+        /*
+        Création session Stripe
+        */
         $session = $stripeCheckoutService->createCheckoutSession($order);
 
-        // On sauvegarde l'id de session Stripe sur la commande
+        /*
+        Sauvegarde session Stripe
+        */
         $order->setStripeSessionId($session->id);
+
         $entityManager->flush();
 
         return $this->json([
-            'message' => 'Session Stripe créée avec succès',
+            'message' => 'Session Stripe créée',
             'sessionId' => $session->id,
-            'checkoutUrl' => $session->url,
+            'checkoutUrl' => $session->url
         ]);
     }
 }
