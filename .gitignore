@@ -42,6 +42,8 @@ Thumbs.db
 
 ###> documentation ###
 doc/sprint
+api.http
+Commande.txt
 ###< documentation ###
 
 ###> Debug controllers (dev only)###
@@ -51,6 +53,7 @@ src/Controller/Debug/
 ###> Dossier upload d image 
 /public/uploads/*
 ###< Dossier upload d image 
+
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
