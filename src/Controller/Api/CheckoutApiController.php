@@ -47,11 +47,19 @@ class CheckoutApiController extends AbstractController
             ], 400);
         }
 
+        $email = $user->getEmail();
+        if (!$email) {
+            return $this->json([
+                'error' => 'Aucun email utilisateur disponible',
+            ], 400);
+        }
+
         $order = new Order();
         $order->setUser($user);
-        $order->setEmail($user->getEmail() ?? '');
+        $order->setEmail($email);
         $order->setStatus(Order::STATUS_PENDING_PAYMENT);
         $order->setCurrency('eur');
+        $order->setUpdatedAt(new \DateTimeImmutable());
 
         $totalCents = 0;
 
@@ -98,6 +106,7 @@ class CheckoutApiController extends AbstractController
         $session = $stripeCheckoutService->createCheckoutSession($order);
 
         $order->setStripeSessionId($session->id);
+        $order->setUpdatedAt(new \DateTimeImmutable());
         $entityManager->flush();
 
         return $this->json([
@@ -145,11 +154,12 @@ class CheckoutApiController extends AbstractController
         $session = $stripeCheckoutService->createCheckoutSession($order);
 
         $order->setStripeSessionId($session->id);
-
+        $order->setUpdatedAt(new \DateTimeImmutable());
         $entityManager->flush();
 
         return $this->json([
             'message' => 'Session Stripe créée',
+            'orderId' => $order->getId(),
             'sessionId' => $session->id,
             'checkoutUrl' => $session->url,
         ]);
