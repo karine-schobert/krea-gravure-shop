@@ -113,6 +113,7 @@ class ProductApiController extends AbstractController
             'title' => $p->getTitle(),
             'slug' => $p->getSlug(),
             'priceCents' => $p->getPriceCents(),
+            'description' => $p->getDescription(),
 
             // Images
             'imageUrl' => $imagePath ? $base . $imagePath : null,
