@@ -45,6 +45,7 @@ security:
   access_control:
     - { path: ^/api/stripe/webhook$, roles: PUBLIC_ACCESS }
     - { path: ^/api/login_check, roles: PUBLIC_ACCESS }
+    - { path: ^/api/register, roles: PUBLIC_ACCESS }
     - { path: ^/api/health, roles: PUBLIC_ACCESS }
 
     - { path: ^/api/products, roles: PUBLIC_ACCESS }
@@ -54,7 +55,7 @@ security:
 
     - { path: ^/api/checkout/session, roles: IS_AUTHENTICATED_FULLY }
     - { path: ^/admin, roles: ROLE_ADMIN }
-    - { path: ^/api/private, roles: ROLE_ADMIN }
+    - { path: ^/api/private/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private, roles: ROLE_USER }
     - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 

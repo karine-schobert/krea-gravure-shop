@@ -34,7 +34,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * Email utilisateur (sert aussi d'identifiant de connexion)
      */
-    #[ORM\Column(length: 180)]
+    #[ORM\Column(length: 180, unique :true)]
     private ?string $email = null;
 
     /**
