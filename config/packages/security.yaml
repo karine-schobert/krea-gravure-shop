@@ -55,6 +55,7 @@ security:
     - { path: ^/api/checkout/session, roles: IS_AUTHENTICATED_FULLY }
     - { path: ^/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private, roles: ROLE_ADMIN }
+    - { path: ^/api/private, roles: ROLE_USER }
     - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
