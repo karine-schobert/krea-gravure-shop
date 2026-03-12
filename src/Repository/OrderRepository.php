@@ -33,4 +33,21 @@ class OrderRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+        public function findOneByStripeSessionId(string $sessionId): ?Order
+    {
+        return $this->createQueryBuilder('o')
+            ->andWhere('o.stripeSessionId = :sessionId')
+            ->setParameter('sessionId', $sessionId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findOneByStripePaymentIntentId(string $paymentIntentId): ?Order
+    {
+        return $this->createQueryBuilder('o')
+            ->andWhere('o.stripePaymentIntentId = :paymentIntentId')
+            ->setParameter('paymentIntentId', $paymentIntentId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

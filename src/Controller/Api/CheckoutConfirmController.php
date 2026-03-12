@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\Order;
 use App\Entity\User;
+use App\Repository\OrderRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Checkout\Session as StripeSession;
 use Stripe\StripeClient;
@@ -22,10 +23,11 @@ class CheckoutConfirmController extends AbstractController
     ) {
     }
 
-    #[Route('/confirm/{id}', name: 'confirm', methods: ['GET'])]
+    #[Route('/confirm-session/{sessionId}', name: 'confirm_session', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
-    public function confirm(
-        Order $order,
+    public function confirmBySessionId(
+        string $sessionId,
+        OrderRepository $orderRepository,
         EntityManagerInterface $em
     ): JsonResponse {
         /** @var User|null $user */
@@ -35,6 +37,15 @@ class CheckoutConfirmController extends AbstractController
             return $this->json([
                 'error' => 'Utilisateur non authentifié',
             ], 401);
+        }
+
+        $order = $orderRepository->findOneByStripeSessionId($sessionId);
+
+        if (!$order) {
+            return $this->json([
+                'error' => 'Commande introuvable pour cette session Stripe',
+                'sessionId' => $sessionId,
+            ], 404);
         }
 
         if ($order->getUser() !== $user) {
@@ -47,15 +58,8 @@ class CheckoutConfirmController extends AbstractController
             return $this->json([
                 'message' => 'Commande déjà payée',
                 'status' => $order->getStatus(),
+                'orderId' => $order->getId(),
             ]);
-        }
-
-        $sessionId = $order->getStripeSessionId();
-
-        if (!$sessionId) {
-            return $this->json([
-                'error' => 'Aucune session Stripe liée à cette commande',
-            ], 400);
         }
 
         $stripe = new StripeClient($this->stripeSecretKey);
@@ -68,11 +72,13 @@ class CheckoutConfirmController extends AbstractController
                 'message' => 'Paiement non confirmé',
                 'stripe_payment_status' => $session->payment_status ?? null,
                 'order_status' => $order->getStatus(),
+                'orderId' => $order->getId(),
             ], 400);
         }
 
         $paymentIntent = $session->payment_intent ?? null;
 
+        $order->setStripeSessionId($session->id);
         $order->setStatus(Order::STATUS_PAID);
         $order->setPaidAt(new \DateTimeImmutable());
         $order->setUpdatedAt(new \DateTimeImmutable());
@@ -83,6 +89,7 @@ class CheckoutConfirmController extends AbstractController
         return $this->json([
             'message' => 'Commande confirmée comme payée',
             'status' => $order->getStatus(),
+            'orderId' => $order->getId(),
             'sessionId' => $session->id,
             'paymentStatus' => $session->payment_status,
             'paymentIntent' => $paymentIntent,

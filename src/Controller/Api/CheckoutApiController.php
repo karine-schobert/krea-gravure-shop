@@ -108,6 +108,7 @@ class CheckoutApiController extends AbstractController
         $order->setStripeSessionId($session->id);
         $order->setUpdatedAt(new \DateTimeImmutable());
         $entityManager->flush();
+        
 
         return $this->json([
             'message' => 'Session Stripe créée depuis le panier',
