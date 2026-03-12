@@ -12,6 +12,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class AccountApiController extends AbstractController
 {
+    /**
+     * Retourne les informations du compte actuellement connecté.
+     */
     #[Route('/api/account', name: 'api_account_me', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
     public function me(): JsonResponse
@@ -30,6 +33,10 @@ class AccountApiController extends AbstractController
             'roles' => $user->getRoles(),
         ]);
     }
+
+    /**
+     * Retourne la liste des commandes de l'utilisateur connecté.
+     */
     #[Route('/api/account/orders', name: 'api_account_orders', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
     public function orders(OrderRepository $orderRepository): JsonResponse
@@ -57,9 +64,14 @@ class AccountApiController extends AbstractController
             ];
         }, $orders);
 
-        return $this->json($data);
+        return $this->json([
+            'orders' => $data,
+        ]);
     }
 
+    /**
+     * Retourne le détail d'une commande précise de l'utilisateur connecté.
+     */
     #[Route('/api/account/orders/{id}', name: 'api_account_order_show', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
     public function showOrder(int $id, OrderRepository $orderRepository): JsonResponse
@@ -87,11 +99,13 @@ class AccountApiController extends AbstractController
         }
 
         return $this->json([
-            'id' => $order->getId(),
-            'status' => $order->getStatus(),
-            'totalCents' => $order->getTotalCents(),
-            'currency' => $order->getCurrency(),
-            'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
+            'order' => [
+                'id' => $order->getId(),
+                'status' => $order->getStatus(),
+                'totalCents' => $order->getTotalCents(),
+                'currency' => $order->getCurrency(),
+                'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
+            ],
         ]);
     }
 }
