@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\Order;
+use App\Entity\OrderItem;
 use App\Entity\User;
 use App\Repository\OrderRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -54,15 +55,22 @@ class AccountApiController extends AbstractController
             ['createdAt' => 'DESC']
         );
 
-        $data = array_map(static function (Order $order): array {
-            return [
-                'id' => $order->getId(),
-                'status' => $order->getStatus(),
-                'totalCents' => $order->getTotalCents(),
-                'currency' => $order->getCurrency(),
-                'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
-            ];
-        }, $orders);
+       $data = array_map(static function (Order $order): array {
+        $itemsCount = 0;
+
+        foreach ($order->getItems() as $item) {
+            $itemsCount += $item->getQuantity() ?? 0;
+        }
+
+        return [
+            'id' => $order->getId(),
+            'status' => $order->getStatus(),
+            'totalCents' => $order->getTotalCents(),
+            'currency' => $order->getCurrency(),
+            'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
+            'itemsCount' => $itemsCount,
+        ];
+    }, $orders);
 
         return $this->json([
             'orders' => $data,
@@ -98,6 +106,21 @@ class AccountApiController extends AbstractController
             ], 403);
         }
 
+        $items = array_map(static function (OrderItem $item): array {
+            $product = $item->getProduct();
+
+            return [
+                'id' => $item->getId(),
+                'productId' => $product?->getId(),
+                'productTitle' => $item->getProductTitle(),
+                'productSlug' => $product?->getSlug(),
+                'productImage' => $product?->getImagePath(),
+                'unitPriceCents' => $item->getUnitPriceCents(),
+                'quantity' => $item->getQuantity(),
+                'lineTotalCents' => $item->getLineTotalCents(),
+            ];
+        }, $order->getItems()->toArray());
+
         return $this->json([
             'order' => [
                 'id' => $order->getId(),
@@ -105,6 +128,7 @@ class AccountApiController extends AbstractController
                 'totalCents' => $order->getTotalCents(),
                 'currency' => $order->getCurrency(),
                 'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
+                'items' => $items,
             ],
         ]);
     }
