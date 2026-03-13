@@ -33,6 +33,12 @@ class OrderItem
     #[ORM\Column]
     private ?int $lineTotalCents = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $productImage = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $productSlug = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -101,6 +107,29 @@ class OrderItem
     public function setLineTotalCents(int $lineTotalCents): static
     {
         $this->lineTotalCents = $lineTotalCents;
+        return $this;
+    }
+    public function getProductImage(): ?string
+    {
+        return $this->productImage;
+    }
+
+    public function setProductImage(?string $productImage): self
+    {
+        $this->productImage = $productImage;
+
+        return $this;
+    }
+
+    public function getProductSlug(): ?string
+    {
+        return $this->productSlug;
+    }
+
+    public function setProductSlug(?string $productSlug): self
+    {
+        $this->productSlug = $productSlug;
+
         return $this;
     }
 }
