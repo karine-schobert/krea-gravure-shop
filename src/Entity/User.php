@@ -16,6 +16,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * Objectifs :
  * - Authentification via email + mot de passe hashé
  * - Gestion des rôles (ROLE_USER forcé, ROLE_ADMIN possible)
+ * - Stockage des informations client principales
  * - Champ "plainPassword" NON persisté (uniquement formulaire / EasyAdmin)
  */
 #[ORM\Entity(repositoryClass: UserRepository::class)]
@@ -34,8 +35,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * Email utilisateur (sert aussi d'identifiant de connexion)
      */
-    #[ORM\Column(length: 180, unique :true)]
+    #[ORM\Column(length: 180, unique: true)]
     private ?string $email = null;
+
+    /**
+     * Prénom du client.
+     *
+     * Nullable pour rester compatible
+     * avec les comptes déjà existants.
+     */
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $firstName = null;
+
+    /**
+     * Nom du client.
+     *
+     * Nullable pour rester compatible
+     * avec les comptes déjà existants.
+     */
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $lastName = null;
 
     /**
      * Rôles en base (ex: ["ROLE_ADMIN"])
@@ -101,6 +120,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
+     * Retourne le prénom
+     */
+    public function getFirstName(): ?string
+    {
+        return $this->firstName;
+    }
+
+    /**
+     * Définit le prénom
+     */
+    public function setFirstName(?string $firstName): static
+    {
+        $this->firstName = $firstName;
+        return $this;
+    }
+
+    /**
+     * Retourne le nom
+     */
+    public function getLastName(): ?string
+    {
+        return $this->lastName;
+    }
+
+    /**
+     * Définit le nom
+     */
+    public function setLastName(?string $lastName): static
+    {
+        $this->lastName = $lastName;
+        return $this;
+    }
+
+    /**
      * Identifiant utilisé par Symfony Security
      */
     public function getUserIdentifier(): string
@@ -113,6 +166,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function __toString(): string
     {
+        $fullName = trim(($this->firstName ?? '') . ' ' . ($this->lastName ?? ''));
+
+        if ($fullName !== '') {
+            return sprintf('%s <%s>', $fullName, (string) $this->email);
+        }
+
         return (string) $this->email;
     }
 
@@ -188,6 +247,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->orders;
     }
 
+    /**
+     * Ajoute une commande à l'utilisateur.
+     */
     public function addOrder(Order $order): static
     {
         if (!$this->orders->contains($order)) {
@@ -198,6 +260,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    /**
+     * Retire une commande de l'utilisateur.
+     */
     public function removeOrder(Order $order): static
     {
         if ($this->orders->removeElement($order)) {
