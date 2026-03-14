@@ -140,26 +140,32 @@ class AppFixtures extends Fixture
             $persistedProducts[] = $p;
         }
 
-        // =========================
-        // 3) Users (Admin + 2 clients)
-        // =========================
-        $admin = (new User())
-            ->setEmail('admin@krea.local')
-            ->setRoles(['ROLE_ADMIN']);
-        $admin->setPassword($this->hasher->hashPassword($admin, 'Admin123!'));
-        $manager->persist($admin);
+       // =========================
+            // 3) Users (Admin + 2 clients)
+            // =========================
+            $admin = (new User())
+                ->setEmail('admin@krea.local')
+                ->setFirstName('Admin')
+                ->setLastName('Krea')
+                ->setRoles(['ROLE_ADMIN']);
+            $admin->setPassword($this->hasher->hashPassword($admin, 'Admin123!'));
+            $manager->persist($admin);
 
-        $client1 = (new User())
-            ->setEmail('client1@krea.local')
-            ->setRoles(['ROLE_USER']);
-        $client1->setPassword($this->hasher->hashPassword($client1, 'Client123!'));
-        $manager->persist($client1);
+            $client1 = (new User())
+                ->setEmail('client1@krea.local')
+                ->setFirstName('Anthony')
+                ->setLastName('Schobert')
+                ->setRoles(['ROLE_USER']);
+            $client1->setPassword($this->hasher->hashPassword($client1, 'Client123!'));
+            $manager->persist($client1);
 
-        $client2 = (new User())
-            ->setEmail('client2@krea.local')
-            ->setRoles(['ROLE_USER']);
-        $client2->setPassword($this->hasher->hashPassword($client2, 'Client123!'));
-        $manager->persist($client2);
+            $client2 = (new User())
+                ->setEmail('client2@krea.local')
+                ->setFirstName('Client')
+                ->setLastName('Deux')
+                ->setRoles(['ROLE_USER']);
+            $client2->setPassword($this->hasher->hashPassword($client2, 'Client123!'));
+            $manager->persist($client2); 
 
         // =========================
         // 4) Commande test
