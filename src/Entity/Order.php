@@ -24,57 +24,126 @@ class Order
     #[ORM\Column]
     private ?int $id = null;
 
+    /**
+     * Utilisateur propriétaire de la commande.
+     */
     #[ORM\ManyToOne(inversedBy: 'orders')]
     private ?User $user = null;
 
+    /**
+     * Email figé au moment de la commande.
+     */
     #[ORM\Column(length: 180)]
     private ?string $email = null;
 
+    /**
+     * Statut métier de la commande.
+     */
     #[ORM\Column(length: 50)]
     private ?string $status = self::STATUS_PENDING_PAYMENT;
 
+    /**
+     * Total de la commande en centimes.
+     */
     #[ORM\Column]
     private ?int $totalCents = 0;
 
+    /**
+     * Devise de la commande.
+     */
     #[ORM\Column(length: 10)]
     private ?string $currency = 'eur';
 
+    /**
+     * Identifiant de session Stripe.
+     */
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $stripeSessionId = null;
 
+    /**
+     * Identifiant du PaymentIntent Stripe.
+     */
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $stripePaymentIntentId = null;
 
+    /**
+     * Date de création.
+     */
     #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    private ?DateTimeImmutable $createdAt = null;
 
+    /**
+     * Date de dernière mise à jour.
+     */
     #[ORM\Column]
-    private ?\DateTimeImmutable $updatedAt = null;
+    private ?DateTimeImmutable $updatedAt = null;
 
+    /**
+     * Date de paiement confirmé.
+     */
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $paidAt = null;
+    private ?DateTimeImmutable $paidAt = null;
+
+    /**
+     * Adresse du carnet sélectionnée au moment du checkout.
+     * Nullable pour compatibilité avec les anciennes commandes.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL', nullable: true)]
+    private ?Address $address = null;
+
+    /**
+     * Snapshot figé des informations de livraison.
+     * Cela évite de perdre l'adresse réellement utilisée
+     * si le client modifie ensuite son carnet d'adresses.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $shippingFullName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $shippingAddressLine = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $shippingPostalCode = null;
+
+    #[ORM\Column(length: 120, nullable: true)]
+    private ?string $shippingCity = null;
+
+    #[ORM\Column(length: 120, nullable: true)]
+    private ?string $shippingCountry = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $shippingPhone = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $shippingInstructions = null;
 
     /**
      * Lignes de la commande.
      *
      * @var Collection<int, OrderItem>
      */
-    #[ORM\OneToMany(mappedBy: 'order', targetEntity: OrderItem::class, orphanRemoval: true, cascade: ['persist'])]
+    #[ORM\OneToMany(
+        mappedBy: 'order',
+        targetEntity: OrderItem::class,
+        orphanRemoval: true,
+        cascade: ['persist']
+    )]
     private Collection $items;
 
     public function __construct()
     {
         $this->items = new ArrayCollection();
         $this->createdAt = new DateTimeImmutable();
-        $this->updatedAt = new \DateTimeImmutable();
+        $this->updatedAt = new DateTimeImmutable();
         $this->status = self::STATUS_PENDING_PAYMENT;
         $this->currency = 'eur';
         $this->totalCents = 0;
     }
 
     /**
-     * Représentation texte de la commande
-     * utile pour EasyAdmin, les relations et les listes.
+     * Représentation texte utile pour EasyAdmin,
+     * les relations et les listes.
      */
     public function __toString(): string
     {
@@ -92,8 +161,7 @@ class Order
     }
 
     /**
-     * Utilisateur lié à la commande
-     * (peut être null selon la logique métier choisie).
+     * Utilisateur lié à la commande.
      */
     public function getUser(): ?User
     {
@@ -123,8 +191,7 @@ class Order
     }
 
     /**
-     * Statut métier de la commande
-     * (pending, paid, failed, cancelled, etc.).
+     * Statut métier de la commande.
      */
     public function getStatus(): ?string
     {
@@ -154,8 +221,7 @@ class Order
     }
 
     /**
-     * Devise de la commande
-     * (ex : eur).
+     * Devise de la commande.
      */
     public function getCurrency(): ?string
     {
@@ -202,12 +268,12 @@ class Order
     /**
      * Date de création de la commande.
      */
-    public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?DateTimeImmutable
     {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
 
@@ -217,12 +283,12 @@ class Order
     /**
      * Date de dernière mise à jour.
      */
-    public function getUpdatedAt(): ?\DateTimeImmutable
+    public function getUpdatedAt(): ?DateTimeImmutable
     {
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
+    public function setUpdatedAt(DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
 
@@ -232,14 +298,134 @@ class Order
     /**
      * Date de paiement confirmée.
      */
-    public function getPaidAt(): ?\DateTimeImmutable
+    public function getPaidAt(): ?DateTimeImmutable
     {
         return $this->paidAt;
     }
 
-    public function setPaidAt(?\DateTimeImmutable $paidAt): static
+    public function setPaidAt(?DateTimeImmutable $paidAt): static
     {
         $this->paidAt = $paidAt;
+
+        return $this;
+    }
+
+    /**
+     * Adresse du carnet liée à la commande.
+     */
+    public function getAddress(): ?Address
+    {
+        return $this->address;
+    }
+
+    public function setAddress(?Address $address): static
+    {
+        $this->address = $address;
+
+        return $this;
+    }
+
+    /**
+     * Nom complet de livraison figé au moment du checkout.
+     */
+    public function getShippingFullName(): ?string
+    {
+        return $this->shippingFullName;
+    }
+
+    public function setShippingFullName(?string $shippingFullName): static
+    {
+        $this->shippingFullName = $shippingFullName;
+
+        return $this;
+    }
+
+    /**
+     * Ligne d'adresse figée au moment du checkout.
+     */
+    public function getShippingAddressLine(): ?string
+    {
+        return $this->shippingAddressLine;
+    }
+
+    public function setShippingAddressLine(?string $shippingAddressLine): static
+    {
+        $this->shippingAddressLine = $shippingAddressLine;
+
+        return $this;
+    }
+
+    /**
+     * Code postal figé au moment du checkout.
+     */
+    public function getShippingPostalCode(): ?string
+    {
+        return $this->shippingPostalCode;
+    }
+
+    public function setShippingPostalCode(?string $shippingPostalCode): static
+    {
+        $this->shippingPostalCode = $shippingPostalCode;
+
+        return $this;
+    }
+
+    /**
+     * Ville figée au moment du checkout.
+     */
+    public function getShippingCity(): ?string
+    {
+        return $this->shippingCity;
+    }
+
+    public function setShippingCity(?string $shippingCity): static
+    {
+        $this->shippingCity = $shippingCity;
+
+        return $this;
+    }
+
+    /**
+     * Pays figé au moment du checkout.
+     */
+    public function getShippingCountry(): ?string
+    {
+        return $this->shippingCountry;
+    }
+
+    public function setShippingCountry(?string $shippingCountry): static
+    {
+        $this->shippingCountry = $shippingCountry;
+
+        return $this;
+    }
+
+    /**
+     * Téléphone de livraison figé au moment du checkout.
+     */
+    public function getShippingPhone(): ?string
+    {
+        return $this->shippingPhone;
+    }
+
+    public function setShippingPhone(?string $shippingPhone): static
+    {
+        $this->shippingPhone = $shippingPhone;
+
+        return $this;
+    }
+
+    /**
+     * Instructions de livraison figées au moment du checkout.
+     */
+    public function getShippingInstructions(): ?string
+    {
+        return $this->shippingInstructions;
+    }
+
+    public function setShippingInstructions(?string $shippingInstructions): static
+    {
+        $this->shippingInstructions = $shippingInstructions;
 
         return $this;
     }

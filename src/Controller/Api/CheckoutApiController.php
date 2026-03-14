@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\Order;
 use App\Entity\OrderItem;
 use App\Entity\User;
+use App\Repository\AddressRepository;
 use App\Repository\ProductRepository;
 use App\Service\StripeCheckoutService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,13 +20,24 @@ class CheckoutApiController extends AbstractController
 {
     /**
      * Crée une commande à partir du panier front,
-     * puis génère une session Stripe associée.
+     * associe une adresse de livraison,
+     * puis génère une session Stripe.
+     *
+     * Attendu côté front :
+     * {
+     *   "items": [
+     *     { "productId": 1, "quantity": 2 },
+     *     { "productId": 4, "quantity": 1 }
+     *   ],
+     *   "addressId": 3
+     * }
      */
     #[Route('', name: 'from_cart', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
     public function checkoutFromCart(
         Request $request,
         ProductRepository $productRepository,
+        AddressRepository $addressRepository,
         StripeCheckoutService $stripeCheckoutService,
         EntityManagerInterface $entityManager
     ): JsonResponse {
@@ -39,13 +51,20 @@ class CheckoutApiController extends AbstractController
         }
 
         /**
-         * Lecture du contenu JSON envoyé par le front.
-         * On attend un tableau "items".
+         * Lecture du JSON envoyé par le front.
          */
         $data = json_decode($request->getContent(), true);
 
+        if (!is_array($data)) {
+            return $this->json([
+                'error' => 'Payload JSON invalide',
+            ], 400);
+        }
+
+        /**
+         * Vérifie la présence des lignes du panier.
+         */
         if (
-            !is_array($data) ||
             !isset($data['items']) ||
             !is_array($data['items']) ||
             count($data['items']) === 0
@@ -56,8 +75,19 @@ class CheckoutApiController extends AbstractController
         }
 
         /**
-         * L'email est stocké dans la commande
-         * pour garder une trace du client au moment de l'achat.
+         * Vérifie la présence de l'adresse de livraison.
+         */
+        $addressId = $data['addressId'] ?? null;
+
+        if (!$addressId) {
+            return $this->json([
+                'error' => 'Aucune adresse de livraison sélectionnée',
+            ], 400);
+        }
+
+        /**
+         * On garde l'email du client dans la commande
+         * comme snapshot du moment de l'achat.
          */
         $email = $user->getEmail();
 
@@ -68,8 +98,28 @@ class CheckoutApiController extends AbstractController
         }
 
         /**
+         * Recherche de l'adresse sélectionnée.
+         */
+        $address = $addressRepository->find($addressId);
+
+        if (!$address) {
+            return $this->json([
+                'error' => 'Adresse introuvable',
+            ], 404);
+        }
+
+        /**
+         * Sécurité : l'adresse doit appartenir
+         * à l'utilisateur connecté.
+         */
+        if ($address->getUser() !== $user) {
+            return $this->json([
+                'error' => 'Adresse non autorisée',
+            ], 403);
+        }
+
+        /**
          * Création de la commande.
-         * La commande démarre en attente de paiement.
          */
         $order = new Order();
         $order->setUser($user);
@@ -78,10 +128,36 @@ class CheckoutApiController extends AbstractController
         $order->setCurrency('eur');
         $order->setUpdatedAt(new \DateTimeImmutable());
 
+        /**
+         * Association de l'adresse du carnet.
+         */
+        $order->setAddress($address);
+
+        /**
+         * Snapshot figé de l'adresse de livraison.
+         * Cela permet de conserver les informations
+         * même si le client modifie ensuite son carnet.
+         */
+        $fullName = trim(
+            sprintf(
+                '%s %s',
+                $address->getFirstName() ?? '',
+                $address->getLastName() ?? ''
+            )
+        );
+
+        $order->setShippingFullName($fullName !== '' ? $fullName : null);
+        $order->setShippingAddressLine($address->getAddress());
+        $order->setShippingPostalCode($address->getPostalCode());
+        $order->setShippingCity($address->getCity());
+        $order->setShippingCountry($address->getCountry());
+        $order->setShippingPhone($address->getPhone());
+        $order->setShippingInstructions($address->getInstructions());
+
         $totalCents = 0;
 
         /**
-         * Parcours de chaque ligne du panier
+         * Parcours des lignes panier
          * pour construire les OrderItem.
          */
         foreach ($data['items'] as $row) {
@@ -96,7 +172,7 @@ class CheckoutApiController extends AbstractController
             }
 
             /**
-             * Recherche du produit courant.
+             * Recherche du produit.
              */
             $product = $productRepository->find($productId);
 
@@ -107,19 +183,11 @@ class CheckoutApiController extends AbstractController
             }
 
             /**
-             * Calcul des montants figés au moment de la commande.
+             * Snapshot du produit au moment de la commande.
              */
             $unitPriceCents = $product->getPriceCents();
             $lineTotalCents = $unitPriceCents * $quantity;
 
-            /**
-             * Création de la ligne de commande.
-             *
-             * Important :
-             * on enregistre un snapshot produit
-             * pour garder les bonnes infos dans le temps,
-             * même si la fiche produit change plus tard.
-             */
             $orderItem = new OrderItem();
             $orderItem->setOrder($order);
             $orderItem->setProduct($product);
@@ -130,37 +198,31 @@ class CheckoutApiController extends AbstractController
             $orderItem->setQuantity($quantity);
             $orderItem->setLineTotalCents($lineTotalCents);
 
-            /**
-             * Ajout de la ligne à la commande.
-             */
             $order->addItem($orderItem);
 
-            /**
-             * Mise à jour du total global.
-             */
             $totalCents += $lineTotalCents;
         }
 
         /**
-         * Enregistrement du total final de la commande.
+         * Enregistre le total final.
          */
         $order->setTotalCents($totalCents);
 
         /**
-         * Sauvegarde initiale de la commande avant création Stripe.
+         * Sauvegarde initiale de la commande
+         * avant génération de la session Stripe.
          */
         $entityManager->persist($order);
         $entityManager->flush();
 
         /**
-         * Création de la session Stripe à partir de la commande.
-         * On ne change pas la logique Stripe ici.
+         * Création de la session Stripe.
          */
         $session = $stripeCheckoutService->createCheckoutSession($order);
 
         /**
-         * On sauvegarde l'identifiant de session Stripe
-         * pour relier la commande locale au paiement Stripe.
+         * Sauvegarde de l'ID de session Stripe
+         * pour relier Stripe à la commande locale.
          */
         $order->setStripeSessionId($session->id);
         $order->setUpdatedAt(new \DateTimeImmutable());
