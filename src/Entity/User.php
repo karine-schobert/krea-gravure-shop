@@ -2,8 +2,9 @@
 
 namespace App\Entity;
 
-use App\Repository\UserRepository;
 use App\Entity\Address;
+use App\Entity\Cart;
+use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -68,7 +69,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private array $roles = [];
 
     /**
-     * Mot de passe hashé (jamais stocker en clair)
+     * Mot de passe hashé (jamais stocké en clair)
      */
     #[ORM\Column]
     private ?string $password = null;
@@ -82,13 +83,188 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     private ?string $plainPassword = null;
 
+    #[ORM\OneToOne(mappedBy: 'user', targetEntity: Cart::class, cascade: ['persist', 'remove'])]
+    private ?Cart $cart = null;
+
     /**
      * Liste des adresses du client.
+     *
+     * @var Collection<int, Address>
      */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Address::class, orphanRemoval: true)]
     private Collection $addresses;
+
+    /**
+     * Liste des commandes liées à cet utilisateur.
+     *
+     * @var Collection<int, Order>
+     */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Order::class)]
+    private Collection $orders;
+
+    public function __construct()
+    {
+        $this->addresses = new ArrayCollection();
+        $this->orders = new ArrayCollection();
+    }
+
+    /**
+     * Retourne l'ID utilisateur.
+     */
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    /**
+     * Retourne l'email.
+     */
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    /**
+     * Définit l'email.
+     */
+    public function setEmail(string $email): static
+    {
+        $this->email = $email;
+
+        return $this;
+    }
+
+    /**
+     * Retourne le prénom.
+     */
+    public function getFirstName(): ?string
+    {
+        return $this->firstName;
+    }
+
+    /**
+     * Définit le prénom.
+     */
+    public function setFirstName(?string $firstName): static
+    {
+        $this->firstName = $firstName;
+
+        return $this;
+    }
+
+    /**
+     * Retourne le nom.
+     */
+    public function getLastName(): ?string
+    {
+        return $this->lastName;
+    }
+
+    /**
+     * Définit le nom.
+     */
+    public function setLastName(?string $lastName): static
+    {
+        $this->lastName = $lastName;
+
+        return $this;
+    }
+
+    /**
+     * Identifiant utilisé par Symfony Security.
+     */
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+
+    /**
+     * Affichage pratique dans EasyAdmin / relations.
+     */
+    public function __toString(): string
+    {
+        $fullName = trim(($this->firstName ?? '') . ' ' . ($this->lastName ?? ''));
+
+        if ($fullName !== '') {
+            return sprintf('%s <%s>', $fullName, (string) $this->email);
+        }
+
+        return (string) $this->email;
+    }
+
+    /**
+     * Retourne les rôles.
+     *
+     * @return list<string>
+     */
+    public function getRoles(): array
+    {
+        $roles = $this->roles;
+        $roles[] = 'ROLE_USER';
+
+        return array_values(array_unique($roles));
+    }
+
+    /**
+     * Définit les rôles en base.
+     *
+     * @param list<string> $roles
+     */
+    public function setRoles(array $roles): static
+    {
+        $this->roles = $roles;
+
+        return $this;
+    }
+
+    /**
+     * Retourne le mot de passe hashé.
+     */
+    public function getPassword(): ?string
+    {
+        return $this->password;
+    }
+
+    /**
+     * Définit le mot de passe hashé.
+     */
+    public function setPassword(string $password): static
+    {
+        $this->password = $password;
+
+        return $this;
+    }
+
+    /**
+     * Retourne le mot de passe en clair (non persisté).
+     */
+    public function getPlainPassword(): ?string
+    {
+        return $this->plainPassword;
+    }
+
+    /**
+     * Définit le mot de passe en clair (non persisté).
+     */
+    public function setPlainPassword(?string $plainPassword): static
+    {
+        $this->plainPassword = $plainPassword;
+
+        return $this;
+    }
+
+    /**
+     * Nettoyage des données sensibles temporaires.
+     */
+    public function eraseCredentials(): void
+    {
+        $this->plainPassword = null;
+    }
+
     /**
      * Retourne les adresses du client.
+     *
+     * @return Collection<int, Address>
      */
     public function getAddresses(): Collection
     {
@@ -120,163 +296,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
 
         return $this;
-    }
-    /**
-     * Liste des commandes liées à cet utilisateur
-     *
-     * @var Collection<int, Order>
-     */
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Order::class)]
-    private Collection $orders;
-
-    public function __construct()
-    {
-        $this->orders = new ArrayCollection();
-    }
-
-    /**
-     * Retourne l'ID utilisateur
-     */
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    /**
-     * Retourne l'email
-     */
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    /**
-     * Définit l'email
-     */
-    public function setEmail(string $email): static
-    {
-        $this->email = $email;
-        return $this;
-    }
-
-    /**
-     * Retourne le prénom
-     */
-    public function getFirstName(): ?string
-    {
-        return $this->firstName;
-    }
-
-    /**
-     * Définit le prénom
-     */
-    public function setFirstName(?string $firstName): static
-    {
-        $this->firstName = $firstName;
-        return $this;
-    }
-
-    /**
-     * Retourne le nom
-     */
-    public function getLastName(): ?string
-    {
-        return $this->lastName;
-    }
-
-    /**
-     * Définit le nom
-     */
-    public function setLastName(?string $lastName): static
-    {
-        $this->lastName = $lastName;
-        return $this;
-    }
-
-    /**
-     * Identifiant utilisé par Symfony Security
-     */
-    public function getUserIdentifier(): string
-    {
-        return (string) $this->email;
-    }
-
-    /**
-     * Affichage pratique dans EasyAdmin / relations
-     */
-    public function __toString(): string
-    {
-        $fullName = trim(($this->firstName ?? '') . ' ' . ($this->lastName ?? ''));
-
-        if ($fullName !== '') {
-            return sprintf('%s <%s>', $fullName, (string) $this->email);
-        }
-
-        return (string) $this->email;
-    }
-
-    /**
-     * Retourne les rôles
-     */
-    public function getRoles(): array
-    {
-        $roles = $this->roles;
-        $roles[] = 'ROLE_USER';
-
-        return array_unique($roles);
-    }
-
-    /**
-     * Définit les rôles en base
-     *
-     * @param list<string> $roles
-     */
-    public function setRoles(array $roles): static
-    {
-        $this->roles = $roles;
-        return $this;
-    }
-
-    /**
-     * Retourne le mot de passe hashé
-     */
-    public function getPassword(): ?string
-    {
-        return $this->password;
-    }
-
-    /**
-     * Définit le mot de passe hashé
-     */
-    public function setPassword(string $password): static
-    {
-        $this->password = $password;
-        return $this;
-    }
-
-    /**
-     * Retourne le mot de passe en clair (non persisté)
-     */
-    public function getPlainPassword(): ?string
-    {
-        return $this->plainPassword;
-    }
-
-    /**
-     * Définit le mot de passe en clair (non persisté)
-     */
-    public function setPlainPassword(?string $plainPassword): static
-    {
-        $this->plainPassword = $plainPassword;
-        return $this;
-    }
-
-    /**
-     * Nettoyage des données sensibles temporaires
-     */
-    public function eraseCredentials(): void
-    {
-        $this->plainPassword = null;
     }
 
     /**
@@ -310,6 +329,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $order->setUser(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getCart(): ?Cart
+    {
+        return $this->cart;
+    }
+
+    public function setCart(?Cart $cart): static
+    {
+        if ($cart !== null && $cart->getUser() !== $this) {
+            $cart->setUser($this);
+        }
+
+        $this->cart = $cart;
 
         return $this;
     }
