@@ -56,9 +56,14 @@ class CartApiController extends AbstractController
         }
 
         // 💥 IMPORTANT : force la lecture/écriture
-        $session->save();
+        //$session = $request->getSession();
+
+        if (!$session->isStarted()) {
+            $session->start();
+        }
 
         $cart = $session->get('cart', []);
+        dump('CART SESSION', $session->get('cart'));
 
         return $this->json(
             $this->buildSessionCartResponse($cart, $em)
@@ -116,6 +121,7 @@ class CartApiController extends AbstractController
 
             // 💥 SAUVEGARDE SESSION (CRITIQUE)
             $session->set('cart', $cart);
+            dump('CART SESSION', $session->get('cart'));
 
             // 💥 FIX IMPORTANT → force écriture immédiate
             $session->save();
@@ -160,42 +166,44 @@ class CartApiController extends AbstractController
      * =========================
      * 👉 centralise logique guest
      */
-    private function buildSessionCartResponse(array $cart, EntityManagerInterface $em): array
-    {
-        $items = [];
-        $totalQuantity = 0;
-        $totalCents = 0;
+   private function buildSessionCartResponse(array $cart, EntityManagerInterface $em): array
+{
+    $items = [];
+    $totalQuantity = 0;
+    $totalCents = 0;
 
-        foreach ($cart as $productId => $qty) {
+    foreach ($cart as $productId => $qty) {
 
-            $product = $em->getRepository(Product::class)->find((int)$productId);
+        $product = $em->getRepository(Product::class)->find((int)$productId);
 
-            unset($cart[$productId]);
-
-            $unit = $product->getPriceCents();
-            $line = $unit * $qty;
-
-            $items[] = [
-                'id' => (int)$productId,
-                'productId' => (int)$productId,
-                'title' => $product->getTitle(),
-                'slug' => $product->getSlug(),
-                'image' => $product->getImage(),
-                'unitPriceCents' => $unit,
-                'quantity' => $qty,
-                'lineTotalCents' => $line,
-            ];
-
-            $totalQuantity += $qty;
-            $totalCents += $line;
+        if (!$product) {
+            continue; // sécurité
         }
 
-        return [
-            'items' => $items,
-            'totalQuantity' => $totalQuantity,
-            'totalCents' => $totalCents,
+        $unit = $product->getPriceCents();
+        $line = $unit * $qty;
+
+        $items[] = [
+            'id' => (int)$productId,
+            'productId' => (int)$productId,
+            'title' => $product->getTitle(),
+            'slug' => $product->getSlug(),
+            'image' => $product->getImage(),
+            'unitPriceCents' => $unit,
+            'quantity' => $qty,
+            'lineTotalCents' => $line,
         ];
+
+        $totalQuantity += $qty;
+        $totalCents += $line;
     }
+
+    return [
+        'items' => $items,
+        'totalQuantity' => $totalQuantity,
+        'totalCents' => $totalCents,
+    ];
+}
 
     /**
      * =========================

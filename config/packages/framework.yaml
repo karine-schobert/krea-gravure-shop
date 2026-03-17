@@ -2,9 +2,11 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
-    # Note that the session will be started ONLY if you read or write from it.
+    # La session démarre uniquement si utilisée
     session:
         enabled: true
+        handler_id: null
+        storage_factory_id: session.storage.factory.native
         cookie_secure: auto
         cookie_httponly: true
         cookie_samesite: lax
