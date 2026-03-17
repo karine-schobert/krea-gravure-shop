@@ -10,139 +10,233 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-/**
- * API du panier client connecté.
- *
- * Contrat JSON attendu par le front Next.js :
- * {
- *   "items": [],
- *   "totalQuantity": 0,
- *   "totalCents": 0
- * }
- *
- * Cette API repose sur un panier stocké en base,
- * lié à l'utilisateur authentifié.
- */
 #[Route('/api/cart', name: 'api_cart_')]
-#[IsGranted('ROLE_USER')]
 class CartApiController extends AbstractController
 {
     /**
-     * Retourne le panier courant.
-     *
-     * GET /api/cart
+     * Vérifie si user connecté
+     */
+    private function isAuthenticatedUser(): bool
+    {
+        return $this->getUser() instanceof User;
+    }
+
+    /**
+     * =========================
+     * 🛒 GET CART
+     * =========================
      */
     #[Route('', name: 'show', methods: ['GET'])]
-    public function show(EntityManagerInterface $entityManager): JsonResponse
+    public function show(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $user = $this->getAuthenticatedUser();
-        $cart = $this->getOrCreateCart($user, $entityManager);
+        /**
+         * =========================
+         * 👤 USER CONNECTÉ (DB)
+         * =========================
+         */
+        if ($this->isAuthenticatedUser()) {
+            $user = $this->getAuthenticatedUser();
+            $cart = $this->getOrCreateCart($user, $em);
+
+            return $this->json($this->serializeCart($cart));
+        }
+
+        /**
+         * =========================
+         * 👤 VISITEUR (SESSION)
+         * =========================
+         */
+        $session = $request->getSession();
+
+        // 🔥 Sécurise la session (important)
+        if (!$session->isStarted()) {
+            $session->start();
+        }
+
+        // 💥 IMPORTANT : force la lecture/écriture
+        $session->save();
+
+        $cart = $session->get('cart', []);
 
         return $this->json(
-            $this->serializeCart($cart),
-            Response::HTTP_OK
+            $this->buildSessionCartResponse($cart, $em)
         );
     }
 
     /**
-     * Ajoute un produit au panier.
-     *
-     * Payload attendu :
-     * {
-     *   "productId": 12,
-     *   "quantity": 2
-     * }
-     *
-     * POST /api/cart/add
+     * =========================
+     * ➕ ADD TO CART
+     * =========================
      */
     #[Route('/add', name: 'add', methods: ['POST'])]
-    public function add(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function add(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $user = $this->getAuthenticatedUser();
-        $cart = $this->getOrCreateCart($user, $entityManager);
-
         $data = json_decode($request->getContent(), true) ?? [];
 
-        $productId = isset($data['productId']) ? (int) $data['productId'] : 0;
-        $quantity = isset($data['quantity']) ? (int) $data['quantity'] : 1;
+        $productId = (int) ($data['productId'] ?? 0);
+        $quantity = (int) ($data['quantity'] ?? 1);
 
         if ($productId <= 0) {
-            return $this->json([
-                'message' => 'Le productId est requis.',
-            ], Response::HTTP_BAD_REQUEST);
+            return $this->json(['message' => 'productId requis'], 400);
         }
 
         if ($quantity <= 0) {
-            return $this->json([
-                'message' => 'La quantité doit être supérieure à 0.',
-            ], Response::HTTP_BAD_REQUEST);
+            return $this->json(['message' => 'quantity invalide'], 400);
         }
 
-        /** @var Product|null $product */
-        $product = $entityManager->getRepository(Product::class)->find($productId);
+        $product = $em->getRepository(Product::class)->find($productId);
 
-        if (!$product instanceof Product) {
-            return $this->json([
-                'message' => 'Produit introuvable.',
-            ], Response::HTTP_NOT_FOUND);
+        if (!$product) {
+            return $this->json(['message' => 'Produit introuvable'], 404);
         }
-
-        if (method_exists($product, 'isActive') && !$product->isActive()) {
-            return $this->json([
-                'message' => 'Ce produit n’est pas disponible.',
-            ], Response::HTTP_BAD_REQUEST);
-        }
-
-        // On cherche si le produit existe déjà dans le panier.
-        $existingItem = $this->findCartItemByProductId($cart, $productId);
-
-        if ($existingItem instanceof CartItem) {
-            // Si la ligne existe déjà, on augmente simplement la quantité.
-            $existingItem->setQuantity($existingItem->getQuantity() + $quantity);
-
-            if (method_exists($existingItem, 'setUpdatedAt')) {
-                $existingItem->setUpdatedAt(new \DateTimeImmutable());
-            }
-        } else {
-            // Sinon, on crée une nouvelle ligne.
-            $cartItem = new CartItem();
-            $cartItem->setProduct($product);
-            $cartItem->setQuantity($quantity);
-
-            /**
-             * Si l'entité Cart possède une vraie méthode addItem(),
-             * on l'utilise pour bien synchroniser la relation en mémoire.
-             */
-            if (method_exists($cart, 'addItem')) {
-                $cart->addItem($cartItem);
-            } else {
-                $cartItem->setCart($cart);
-            }
-
-            $entityManager->persist($cartItem);
-        }
-
-        if (method_exists($cart, 'setUpdatedAt')) {
-            $cart->setUpdatedAt(new \DateTimeImmutable());
-        }
-
-        $entityManager->flush();
 
         /**
-         * Important :
-         * on recharge le panier après flush pour éviter les collections
-         * Doctrine non synchronisées en mémoire.
+         * =========================
+         * 👤 VISITEUR (SESSION)
+         * =========================
          */
-        $entityManager->refresh($cart);
+        if (!$this->isAuthenticatedUser()) {
 
-        return $this->json(
-            $this->serializeCart($cart),
-            Response::HTTP_OK
-        );
+            $session = $request->getSession();
+
+            // 🔥 démarre la session si besoin
+            if (!$session->isStarted()) {
+                $session->start();
+            }
+
+            $cart = $session->get('cart', []);
+
+            if (!isset($cart[$productId])) {
+                $cart[$productId] = 0;
+            }
+
+            $cart[$productId] += $quantity;
+
+            // 💥 SAUVEGARDE SESSION (CRITIQUE)
+            $session->set('cart', $cart);
+
+            // 💥 FIX IMPORTANT → force écriture immédiate
+            $session->save();
+
+            return $this->json(
+                $this->buildSessionCartResponse($cart, $em)
+            );
+        }
+
+        /**
+         * =========================
+         * 👤 USER CONNECTÉ (DB)
+         * =========================
+         */
+        $user = $this->getAuthenticatedUser();
+        $cart = $this->getOrCreateCart($user, $em);
+
+        $existingItem = $this->findCartItemByProductId($cart, $productId);
+
+        if ($existingItem) {
+            $existingItem->setQuantity(
+                $existingItem->getQuantity() + $quantity
+            );
+        } else {
+            $item = new CartItem();
+            $item->setProduct($product);
+            $item->setQuantity($quantity);
+            $item->setCart($cart);
+
+            $em->persist($item);
+        }
+
+        $em->flush();
+        $em->refresh($cart);
+
+        return $this->json($this->serializeCart($cart));
+    }
+
+    /**
+     * =========================
+     * 🧱 BUILD SESSION CART
+     * =========================
+     * 👉 centralise logique guest
+     */
+    private function buildSessionCartResponse(array $cart, EntityManagerInterface $em): array
+    {
+        $items = [];
+        $totalQuantity = 0;
+        $totalCents = 0;
+
+        foreach ($cart as $productId => $qty) {
+
+            $product = $em->getRepository(Product::class)->find((int)$productId);
+
+            unset($cart[$productId]);
+
+            $unit = $product->getPriceCents();
+            $line = $unit * $qty;
+
+            $items[] = [
+                'id' => (int)$productId,
+                'productId' => (int)$productId,
+                'title' => $product->getTitle(),
+                'slug' => $product->getSlug(),
+                'image' => $product->getImage(),
+                'unitPriceCents' => $unit,
+                'quantity' => $qty,
+                'lineTotalCents' => $line,
+            ];
+
+            $totalQuantity += $qty;
+            $totalCents += $line;
+        }
+
+        return [
+            'items' => $items,
+            'totalQuantity' => $totalQuantity,
+            'totalCents' => $totalCents,
+        ];
+    }
+
+    /**
+     * =========================
+     * 🔐 USER SAFE
+     * =========================
+     */
+    private function getAuthenticatedUser(): User
+    {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $user;
+    }
+
+    /**
+     * =========================
+     * 🧺 GET OR CREATE CART
+     * =========================
+     */
+    private function getOrCreateCart(User $user, EntityManagerInterface $em): Cart
+    {
+        $cart = $user->getCart();
+
+        if ($cart) {
+            return $cart;
+        }
+
+        $cart = new Cart();
+        $cart->setUser($user);
+
+        if (method_exists($user, 'setCart')) {
+            $user->setCart($cart);
+        }
+
+        $em->persist($cart);
+        $em->flush();
+
+        return $cart;
     }
 
     /**
@@ -159,56 +253,74 @@ class CartApiController extends AbstractController
      * POST /api/cart/update
      */
     #[Route('/update', name: 'update', methods: ['POST'])]
-    public function update(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function update(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $user = $this->getAuthenticatedUser();
-        $cart = $this->getOrCreateCart($user, $entityManager);
-
         $data = json_decode($request->getContent(), true) ?? [];
 
-        $productId = isset($data['productId']) ? (int) $data['productId'] : 0;
-        $quantity = isset($data['quantity']) ? (int) $data['quantity'] : 0;
+        $productId = (int) ($data['productId'] ?? 0);
+        $quantity = (int) ($data['quantity'] ?? 0);
 
         if ($productId <= 0) {
-            return $this->json([
-                'message' => 'Le productId est requis.',
-            ], Response::HTTP_BAD_REQUEST);
+            return $this->json(['message' => 'productId requis'], 400);
         }
 
-        $targetItem = $this->findCartItemByProductId($cart, $productId);
+        /**
+         * =========================
+         * 👤 VISITEUR (SESSION)
+         * =========================
+         */
+        if (!$this->isAuthenticatedUser()) {
 
-        if (!$targetItem instanceof CartItem) {
-            return $this->json([
-                'message' => 'Produit absent du panier.',
-            ], Response::HTTP_NOT_FOUND);
+            $session = $request->getSession();
+
+            if (!$session->isStarted()) {
+                $session->start();
+            }
+
+            $cart = $session->get('cart', []);
+
+            if (!isset($cart[$productId])) {
+                return $this->json(['message' => 'Produit absent'], 404);
+            }
+
+            if ($quantity <= 0) {
+                unset($cart[$productId]);
+            } else {
+                $cart[$productId] = $quantity;
+            }
+
+            $session->set('cart', $cart);
+            $session->save();
+
+            return $this->json(
+                $this->buildSessionCartResponse($cart, $em)
+            );
         }
 
-        // Si la quantité est <= 0, on supprime la ligne.
+        /**
+         * =========================
+         * 👤 USER CONNECTÉ (DB)
+         * =========================
+         */
+        $user = $this->getAuthenticatedUser();
+        $cart = $this->getOrCreateCart($user, $em);
+
+        $item = $this->findCartItemByProductId($cart, $productId);
+
+        if (!$item) {
+            return $this->json(['message' => 'Produit absent'], 404);
+        }
+
         if ($quantity <= 0) {
-            if (method_exists($cart, 'removeItem')) {
-                $cart->removeItem($targetItem);
-            }
-
-            $entityManager->remove($targetItem);
+            $em->remove($item);
         } else {
-            $targetItem->setQuantity($quantity);
-
-            if (method_exists($targetItem, 'setUpdatedAt')) {
-                $targetItem->setUpdatedAt(new \DateTimeImmutable());
-            }
+            $item->setQuantity($quantity);
         }
 
-        if (method_exists($cart, 'setUpdatedAt')) {
-            $cart->setUpdatedAt(new \DateTimeImmutable());
-        }
+        $em->flush();
+        $em->refresh($cart);
 
-        $entityManager->flush();
-        $entityManager->refresh($cart);
-
-        return $this->json(
-            $this->serializeCart($cart),
-            Response::HTTP_OK
-        );
+        return $this->json($this->serializeCart($cart));
     }
 
     /**
@@ -222,121 +334,100 @@ class CartApiController extends AbstractController
      * POST /api/cart/remove
      */
     #[Route('/remove', name: 'remove', methods: ['POST'])]
-    public function remove(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function remove(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $user = $this->getAuthenticatedUser();
-        $cart = $this->getOrCreateCart($user, $entityManager);
-
         $data = json_decode($request->getContent(), true) ?? [];
-        $productId = isset($data['productId']) ? (int) $data['productId'] : 0;
+
+        $productId = (int) ($data['productId'] ?? 0);
 
         if ($productId <= 0) {
-            return $this->json([
-                'message' => 'Le productId est requis.',
-            ], Response::HTTP_BAD_REQUEST);
+            return $this->json(['message' => 'productId requis'], 400);
         }
 
-        $targetItem = $this->findCartItemByProductId($cart, $productId);
+        /**
+         * 👤 SESSION
+         */
+        if (!$this->isAuthenticatedUser()) {
 
-        if (!$targetItem instanceof CartItem) {
-            return $this->json([
-                'message' => 'Produit absent du panier.',
-            ], Response::HTTP_NOT_FOUND);
+            $session = $request->getSession();
+
+            if (!$session->isStarted()) {
+                $session->start();
+            }
+
+            $cart = $session->get('cart', []);
+
+            unset($cart[$productId]);
+
+            $session->set('cart', $cart);
+            $session->save();
+
+            return $this->json(
+                $this->buildSessionCartResponse($cart, $em)
+            );
         }
 
-        if (method_exists($cart, 'removeItem')) {
-            $cart->removeItem($targetItem);
+        /**
+         * 👤 USER
+         */
+        $user = $this->getAuthenticatedUser();
+        $cart = $this->getOrCreateCart($user, $em);
+
+        $item = $this->findCartItemByProductId($cart, $productId);
+
+        if ($item) {
+            $em->remove($item);
         }
 
-        $entityManager->remove($targetItem);
+        $em->flush();
 
-        if (method_exists($cart, 'setUpdatedAt')) {
-            $cart->setUpdatedAt(new \DateTimeImmutable());
-        }
+        $em->refresh($cart);
 
-        $entityManager->flush();
-        $entityManager->refresh($cart);
-
-        return $this->json(
-            $this->serializeCart($cart),
-            Response::HTTP_OK
-        );
+        return $this->json($this->serializeCart($cart));
     }
-
     /**
      * Vide complètement le panier.
      *
      * POST /api/cart/clear
      */
     #[Route('/clear', name: 'clear', methods: ['POST'])]
-    public function clear(EntityManagerInterface $entityManager): JsonResponse
+    public function clear(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $user = $this->getAuthenticatedUser();
-        $cart = $this->getOrCreateCart($user, $entityManager);
+        /**
+         * 👤 SESSION
+         */
+        if (!$this->isAuthenticatedUser()) {
 
-        foreach ($cart->getItems() as $item) {
-            if (method_exists($cart, 'removeItem')) {
-                $cart->removeItem($item);
+            $session = $request->getSession();
+
+            if (!$session->isStarted()) {
+                $session->start();
             }
 
-            $entityManager->remove($item);
+            $session->set('cart', []);
+            $session->save();
+
+            return $this->json([
+                'items' => [],
+                'totalQuantity' => 0,
+                'totalCents' => 0,
+            ]);
         }
-
-        if (method_exists($cart, 'setUpdatedAt')) {
-            $cart->setUpdatedAt(new \DateTimeImmutable());
-        }
-
-        $entityManager->flush();
-        $entityManager->refresh($cart);
-
-        return $this->json(
-            $this->serializeCart($cart),
-            Response::HTTP_OK
-        );
-    }
-
-    /**
-     * Retourne l'utilisateur connecté en garantissant
-     * qu'il s'agit bien de notre entité User.
-     */
-    private function getAuthenticatedUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw $this->createAccessDeniedException('Utilisateur non authentifié.');
-        }
-
-        return $user;
-    }
-
-    /**
-     * Récupère le panier lié à l'utilisateur.
-     * S'il n'existe pas encore, on le crée.
-     */
-    private function getOrCreateCart(User $user, EntityManagerInterface $entityManager): Cart
-    {
-        $cart = $user->getCart();
-
-        if ($cart instanceof Cart) {
-            return $cart;
-        }
-
-        $cart = new Cart();
-        $cart->setUser($user);
 
         /**
-         * Si ton entité User possède setCart(),
-         * on synchronise aussi le côté inverse.
+         * 👤 USER
          */
-        if (method_exists($user, 'setCart')) {
-            $user->setCart($cart);
+        $user = $this->getAuthenticatedUser();
+        $cart = $this->getOrCreateCart($user, $em);
+
+        foreach ($cart->getItems() as $item) {
+            $em->remove($item);
         }
 
-        $entityManager->persist($cart);
-        $entityManager->flush();
+        $em->flush();
+        $em->refresh($cart);
 
-        return $cart;
+        return $this->json($this->serializeCart($cart));
     }
 
     /**

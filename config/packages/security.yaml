@@ -52,6 +52,8 @@ security:
     - { path: ^/api/categories$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/[a-z0-9-]+$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/.+/products$, roles: PUBLIC_ACCESS }
+    
+    - { path: ^/api/cart, roles: PUBLIC_ACCESS }
 
     - { path: ^/api/checkout/session, roles: IS_AUTHENTICATED_FULLY }
     - { path: ^/admin, roles: ROLE_ADMIN }
