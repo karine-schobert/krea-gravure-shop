@@ -37,11 +37,56 @@ class CartApiController extends AbstractController
          * =========================
          */
         if ($this->isAuthenticatedUser()) {
-            $user = $this->getAuthenticatedUser();
-            $cart = $this->getOrCreateCart($user, $em);
 
-            return $this->json($this->serializeCart($cart));
+    $user = $this->getAuthenticatedUser();
+
+    $session = $request->getSession();
+    if (!$session->isStarted()) {
+        $session->start();
+    }
+
+    $sessionCart = $session->get('cart', []);
+
+    // 🔥 récupère ou crée panier user
+    $cart = $this->getOrCreateCart($user, $em);
+
+    // 💥 SI panier session existe → fusion
+    if (!empty($sessionCart)) {
+
+        foreach ($sessionCart as $productId => $qty) {
+
+            $product = $em->getRepository(Product::class)->find((int)$productId);
+
+            if (!$product) {
+                continue;
+            }
+
+            $existingItem = $this->findCartItemByProductId($cart, (int)$productId);
+
+            if ($existingItem) {
+                $existingItem->setQuantity(
+                    $existingItem->getQuantity() + $qty
+                );
+            } else {
+                $item = new CartItem();
+                $item->setProduct($product);
+                $item->setQuantity($qty);
+                $item->setCart($cart);
+
+                $em->persist($item);
+            }
         }
+
+        // 🔥 vide la session après fusion
+        $session->set('cart', []);
+        $session->save();
+
+        $em->flush();
+        $em->refresh($cart);
+    }
+
+    return $this->json($this->serializeCart($cart));
+}
 
         /**
          * =========================
