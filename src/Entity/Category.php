@@ -38,6 +38,11 @@ class Category
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $image = null;
+
+
+    /*GETTER ET SETTERS*/
     public function __construct()
     {
         $this->products = new ArrayCollection();
@@ -143,5 +148,34 @@ class Category
     {
         $this->updatedAt = $updatedAt;
         return $this;
+    }
+
+    /**
+     * Get category image filename
+     */
+    public function getImage(): ?string
+    {
+        return $this->image;
+    }
+
+    /**
+     * Set category image filename
+     * 👉 nettoyage + gestion null comme Homepage
+     */
+    public function setImage(?string $image): static
+    {
+        $image = $image !== null ? trim($image) : null;
+        $this->image = $image === '' ? null : $image;
+
+        return $this;
+    }
+    /**
+     * Retourne le chemin public complet
+     */
+    public function getImagePath(): ?string
+    {
+        return $this->image
+            ? '/images/categories/' . $this->image
+            : null;
     }
 }

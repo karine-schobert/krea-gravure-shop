@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -62,11 +63,23 @@ class DashboardController extends AbstractDashboardController
             ->setAction(Action::INDEX)
             ->generateUrl();
 
+        $homepageUrl = $adminUrlGenerator
+            ->setController(HomepageCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
+
 
         yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
         yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
         yield MenuItem::linkToUrl('Utilsateur', 'fa fa-users', $userUrl);
         yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
+        yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
 
     }
+
+    public function configureAssets(): Assets
+{
+    return Assets::new()
+        ->addCssFile('admin.css');
+}
 }

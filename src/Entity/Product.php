@@ -213,4 +213,20 @@ class Product
     {
         return $this->image ? '/uploads/products/' . $this->image : null;
     }
+
+    /**
+     * Permet à EasyAdmin (et Symfony en général)
+     * de convertir automatiquement un Product en string.
+     *
+     * 👉 utilisé pour :
+     * - les listes déroulantes (relations ManyToMany)
+     * - les affichages dans l'admin
+     *
+     * Sans cette méthode → erreur :
+     * "Object of class Product could not be converted to string"
+     */
+    public function __toString(): string
+    {
+        return $this->getTitle() ?? 'Produit';
+    }
 }

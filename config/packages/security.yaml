@@ -48,6 +48,9 @@ security:
     - { path: ^/api/register, roles: PUBLIC_ACCESS }
     - { path: ^/api/health, roles: PUBLIC_ACCESS }
 
+    
+    - { path: ^/api/homepage, roles: PUBLIC_ACCESS }
+
     - { path: ^/api/products, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/[a-z0-9-]+$, roles: PUBLIC_ACCESS }
@@ -59,6 +62,8 @@ security:
     - { path: ^/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private, roles: ROLE_USER }
+
+    # 🔥 CELLE-CI DOIT RESTER EN DERNIER
     - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:

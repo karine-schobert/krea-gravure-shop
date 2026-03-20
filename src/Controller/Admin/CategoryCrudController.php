@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Category;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -18,9 +19,7 @@ use Symfony\Component\String\Slugger\SluggerInterface;
 
 class CategoryCrudController extends AbstractCrudController
 {
-    public function __construct(private readonly SluggerInterface $slugger)
-    {
-    }
+    public function __construct(private readonly SluggerInterface $slugger) {}
 
     public static function getEntityFqcn(): string
     {
@@ -58,23 +57,30 @@ class CategoryCrudController extends AbstractCrudController
         $slug = TextField::new('slug', 'Slug')
             ->setHelp('Laisse vide pour auto-générer depuis le nom.');
 
+        $image = ImageField::new('image', 'Image')
+            ->setBasePath('images/categories')
+            ->setUploadDir('public/images/categories')
+            ->setRequired(false)
+            ->setUploadedFileNamePattern('[slug]-[timestamp].[extension]');
+
         $createdAt = DateTimeField::new('createdAt', 'Créé le')
             ->setFormTypeOption('disabled', true);
 
-        // Si tu as bien Category::$products (OneToMany)
         $products = AssociationField::new('products', 'Produits')
             ->onlyOnDetail();
 
+        // INDEX
         if (Crud::PAGE_INDEX === $pageName) {
-            return [$id, $name, $slug, $createdAt];
+            return [$id, $name, $slug, $image, $createdAt];
         }
 
+        // DETAIL
         if (Crud::PAGE_DETAIL === $pageName) {
-            return [$id, $name, $slug, $createdAt, $products];
+            return [$id, $name, $slug, $image, $createdAt, $products];
         }
 
         // NEW / EDIT
-        return [$name, $slug, $createdAt];
+        return [$name, $slug, $image, $createdAt];
     }
 
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
