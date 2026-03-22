@@ -284,6 +284,32 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+     /**
+     * Compteur utile easyadmin.
+     */
+    public function getAddressesCount(): int
+    {
+        return $this->addresses->count();
+    }
+
+    public function getOrdersCount(): int
+    {
+        return $this->orders->count();
+    }
+
+    public function getTotalSpentEuros(): float
+    {
+        $total = 0;
+
+        foreach ($this->orders as $order) {
+            if ($order->getStatus() === \App\Entity\Order::STATUS_PAID) {
+                $total += $order->getTotalCents() ?? 0;
+            }
+        }
+
+        return $total / 100;
+    }
+
     /**
      * Supprime une adresse du client.
      */

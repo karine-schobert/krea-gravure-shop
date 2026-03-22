@@ -39,6 +39,21 @@ class OrderItem
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $productSlug = null;
 
+    /**
+     * Représentation texte utile pour EasyAdmin
+     * et l'affichage des collections.
+     */
+    public function __toString(): string
+    {
+        $title = $this->productTitle ?? 'Produit';
+        $quantity = $this->quantity ?? 0;
+        $unit = number_format(($this->unitPriceCents ?? 0) / 100, 2, ',', ' ');
+        $total = number_format(($this->lineTotalCents ?? 0) / 100, 2, ',', ' ');
+
+        return sprintf('%s x%d - %s € / total %s €', $title, $quantity, $unit, $total);
+    }
+
+
     public function getId(): ?int
     {
         return $this->id;

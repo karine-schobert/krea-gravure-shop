@@ -84,6 +84,20 @@ class Cart
         $this->updatedAt = new DateTimeImmutable();
     }
 
+     /**
+     * Affichage pratique dans EasyAdmin / relations.
+     */
+        public function __toString(): string
+    {
+        return sprintf(
+            'Panier #%d - %d article(s) - %.2f €',
+            $this->id ?? 0,
+            $this->getTotalQuantity(),
+            $this->getTotalCents() / 100
+        );
+    }
+
+
     /**
      * Retourne l'identifiant du panier.
      */

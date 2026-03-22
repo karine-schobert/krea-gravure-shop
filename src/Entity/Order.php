@@ -154,7 +154,7 @@ class Order
             $this->status ?? 'sans statut'
         );
     }
-
+   
     public function getId(): ?int
     {
         return $this->id;

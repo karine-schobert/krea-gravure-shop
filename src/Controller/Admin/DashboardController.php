@@ -12,7 +12,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-
 #[IsGranted('ROLE_ADMIN')]
 #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
 class DashboardController extends AbstractDashboardController
@@ -37,55 +36,59 @@ class DashboardController extends AbstractDashboardController
     }
 
     public function configureMenuItems(): iterable
-    {
-        yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
+{
+    yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
 
-        /** @var AdminUrlGenerator $adminUrlGenerator */
-        $adminUrlGenerator = $this->container->get(AdminUrlGenerator::class);
+    /** @var AdminUrlGenerator $adminUrlGenerator */
+    $adminUrlGenerator = $this->container->get(AdminUrlGenerator::class);
 
-        $productUrl = $adminUrlGenerator
-            ->setController(ProductCrudController::class)
-            ->setAction(Action::INDEX)
-            ->generateUrl();
+    $productUrl = $adminUrlGenerator
+        ->setController(ProductCrudController::class)
+        ->setAction(Action::INDEX)
+        ->generateUrl();
 
-        $categoryUrl = $adminUrlGenerator
-            ->setController(CategoryCrudController::class)
-            ->setAction(Action::INDEX)
-            ->generateUrl();
-            
-        $userUrl = $adminUrlGenerator
-            ->setController(UserCrudController::class)
-            ->setAction(Action::INDEX)
-            ->generateUrl();
-        
-         $orderUrl= $adminUrlGenerator
-            ->setController(OrderCrudController::class)
-            ->setAction(Action::INDEX)
-            ->generateUrl();
+    $categoryUrl = $adminUrlGenerator
+        ->setController(CategoryCrudController::class)
+        ->setAction(Action::INDEX)
+        ->generateUrl();
 
-        $homepageUrl = $adminUrlGenerator
-            ->setController(HomepageCrudController::class)
-            ->setAction(Action::INDEX)
-            ->generateUrl();
+    $adminUserUrl = $adminUrlGenerator
+        ->setController(AdminCrudController::class)
+        ->setAction(Action::INDEX)
+        ->generateUrl();
 
-        $seasonUrl = $adminUrlGenerator
-            ->setController(SeasonCrudController::class)
-            ->setAction(Action::INDEX)
-            ->generateUrl();
+    $customerUrl = $adminUrlGenerator
+        ->setController(CustomerCrudController::class)
+        ->setAction(Action::INDEX)
+        ->generateUrl();
 
+    $orderUrl = $adminUrlGenerator
+        ->setController(OrderCrudController::class)
+        ->setAction(Action::INDEX)
+        ->generateUrl();
 
-        yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
-        yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
-        yield MenuItem::linkToUrl('Utilsateur', 'fa fa-users', $userUrl);
-        yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
-        yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
-        yield MenuItem::linkToUrl('Saisons', 'fa fa-calendar', $seasonUrl);
+    $homepageUrl = $adminUrlGenerator
+        ->setController(HomepageCrudController::class)
+        ->setAction(Action::INDEX)
+        ->generateUrl();
 
-    }
+    $seasonUrl = $adminUrlGenerator
+        ->setController(SeasonCrudController::class)
+        ->setAction(Action::INDEX)
+        ->generateUrl();
+
+    yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
+    yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
+    yield MenuItem::linkToUrl('Clients', 'fa fa-users', $customerUrl);
+    yield MenuItem::linkToUrl('Administrateurs', 'fa fa-user-shield', $adminUserUrl);
+    yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
+    yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
+    yield MenuItem::linkToUrl('Saisons', 'fa fa-calendar', $seasonUrl);
+}
 
     public function configureAssets(): Assets
-{
-    return Assets::new()
-        ->addCssFile('admin.css');
-}
+    {
+        return Assets::new()
+            ->addCssFile('admin/admin.css');
+    }
 }

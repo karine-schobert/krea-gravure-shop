@@ -12,22 +12,21 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\MoneyField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\BooleanFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
-
 class ProductCrudController extends AbstractCrudController
 {
-    public function __construct(private readonly SluggerInterface $slugger)
-    {
-    }
+    public function __construct(private readonly SluggerInterface $slugger) {}
 
     public static function getEntityFqcn(): string
     {
@@ -35,119 +34,233 @@ class ProductCrudController extends AbstractCrudController
     }
 
     /**
-     * Configuration globale du CRUD :
-     * - labels FR
-     * - tri par défaut
-     * - recherche
+     * Configuration générale du CRUD
      */
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
             ->setEntityLabelInSingular('Produit')
             ->setEntityLabelInPlural('Produits')
+            ->setPageTitle(Crud::PAGE_INDEX, 'Gestion des produits')
+            ->setPageTitle(Crud::PAGE_NEW, 'Ajouter un produit')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Modifier un produit')
+            ->setPageTitle(Crud::PAGE_DETAIL, 'Détail du produit')
             ->setDefaultSort(['id' => 'DESC'])
             ->showEntityActionsInlined()
             ->setSearchFields(['id', 'title', 'slug', 'description']);
     }
 
     /**
-     * Actions :
-     * - Ajoute une action "Détail" sur la page listing
+     * Actions et boutons colorés
      */
     public function configureActions(Actions $actions): Actions
     {
-        return $actions->add(Crud::PAGE_INDEX, Action::DETAIL);
+        return $actions
+            ->add(Crud::PAGE_INDEX, Action::DETAIL)
+
+            ->update(Crud::PAGE_INDEX, Action::DETAIL, fn(Action $action) => $action
+                ->setLabel('Voir')
+                ->setIcon('fa fa-eye')
+                ->addCssClass('crud-action-show'))
+
+            ->update(Crud::PAGE_INDEX, Action::EDIT, fn(Action $action) => $action
+                ->setLabel('Modifier')
+                ->setIcon('fa fa-pen')
+                ->addCssClass('crud-action-edit'))
+
+            ->update(Crud::PAGE_INDEX, Action::DELETE, fn(Action $action) => $action
+                ->setLabel('Supprimer')
+                ->setIcon('fa fa-trash')
+                ->addCssClass('crud-action-delete'))
+
+            ->update(Crud::PAGE_INDEX, Action::NEW, fn(Action $action) => $action
+                ->setLabel('Ajouter un produit')
+                ->setIcon('fa fa-plus')
+                ->addCssClass('crud-action-new'))
+
+            ->update(Crud::PAGE_DETAIL, Action::EDIT, fn(Action $action) => $action
+                ->setLabel('Modifier')
+                ->setIcon('fa fa-pen')
+                ->addCssClass('crud-action-edit'))
+
+            ->update(Crud::PAGE_DETAIL, Action::DELETE, fn(Action $action) => $action
+                ->setLabel('Supprimer')
+                ->setIcon('fa fa-trash')
+                ->addCssClass('crud-action-delete'))
+
+            // DETAIL : souvent déjà présente, donc update
+            ->update(Crud::PAGE_DETAIL, Action::INDEX, fn(Action $action) => $action
+                ->setLabel('Retour à la liste')
+                ->setIcon('fa fa-arrow-left')
+                ->addCssClass('crud-action-back'))
+
+            // EDIT : on ajoute l'action
+            ->add(Crud::PAGE_EDIT, Action::INDEX)
+            ->update(Crud::PAGE_EDIT, Action::INDEX, fn(Action $action) => $action
+                ->setLabel('Retour à la liste')
+                ->setIcon('fa fa-arrow-left')
+                ->addCssClass('crud-action-back'))
+
+            // NEW : on ajoute l'action
+            ->add(Crud::PAGE_NEW, Action::INDEX)
+            ->update(Crud::PAGE_NEW, Action::INDEX, fn(Action $action) => $action
+                ->setLabel('Retour à la liste')
+                ->setIcon('fa fa-arrow-left')
+                ->addCssClass('crud-action-back'))
+
+            ->update(Crud::PAGE_EDIT, Action::SAVE_AND_RETURN, fn(Action $action) => $action
+                ->setLabel('Enregistrer les modifications'))
+
+            ->update(Crud::PAGE_EDIT, Action::SAVE_AND_CONTINUE, fn(Action $action) => $action
+                ->setLabel('Enregistrer et continuer'));
     }
 
     /**
-     * Filtres sur la page listing
+     * Filtres utiles sur le listing
      */
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
             ->add(TextFilter::new('title', 'Titre'))
             ->add(TextFilter::new('slug', 'Slug'))
+            ->add(EntityFilter::new('category', 'Catégorie'))
+            ->add(EntityFilter::new('seasons', 'Saisons'))
             ->add(NumericFilter::new('priceCents', 'Prix (centimes)'))
             ->add(BooleanFilter::new('isActive', 'Actif'));
     }
 
     /**
-     * Champs (listing / détail / form new/edit)
-     * - Listing : image + titre + catégorie + prix + actif + créé
-     * - Détail : tout
-     * - Form : upload image + champs essentiels
+     * Champs affichés selon la page
      */
     public function configureFields(string $pageName): iterable
     {
-        // ID uniquement en listing + detail
-        $id = IdField::new('id')->onlyOnIndex();
+        // =========================
+        // Champs communs
+        // =========================
 
-        // Titre produit
-        $title = TextField::new('title', 'Titre');
+        $id = IdField::new('id', 'ID')->hideOnForm();
 
-        // Slug (optionnel, auto-généré si vide)
+        $title = TextField::new('title', 'Titre')
+            ->setHelp('Nom affiché sur la boutique.');
+
         $slug = TextField::new('slug', 'Slug')
-            ->setHelp('Laisse vide pour auto-générer depuis le titre.');
+            ->setHelp('Laisse vide pour le générer automatiquement depuis le titre.');
 
-        // Catégorie (ManyToOne)
-        $category = AssociationField::new('category', 'Catégorie');
+        $category = AssociationField::new('category', 'Catégorie')
+            ->setHelp('Choisis la catégorie principale du produit.');
 
-        //Season
-            $seasons = AssociationField::new('seasons', 'Saisons')
+        // Sur index / detail : affichage texte
+        $seasonsDisplay = AssociationField::new('seasons', 'Saisons')
             ->formatValue(function ($value, $entity) {
+                $seasons = $entity->getSeasons()->toArray();
+
+                if (empty($seasons)) {
+                    return '—';
+                }
+
                 return implode(', ', array_map(
                     fn($season) => $season->getName(),
-                    $entity->getSeasons()->toArray()
+                    $seasons
                 ));
             });
 
-        // Description longue (cache en listing)
-        $description = TextareaField::new('description', 'Description')
-            ->hideOnIndex();
+        // Sur form : vrai champ relation
+        $seasonsForm = AssociationField::new('seasons', 'Saisons')
+            ->setHelp('Associe ce produit à une ou plusieurs saisons.')
+            ->setFormTypeOption('by_reference', false);
 
-        // Prix en centimes affiché en €
+        $description = TextareaField::new('description', 'Description')
+            ->hideOnIndex()
+            ->setHelp('Description visible sur la fiche produit.');
+
         $price = MoneyField::new('priceCents', 'Prix')
             ->setCurrency('EUR')
-            ->setStoredAsCents(true);
+            ->setStoredAsCents(true)
+            ->setHelp('Prix enregistré en centimes dans la base.');
 
-        // Actif/inactif
         $isActive = BooleanField::new('isActive', 'Actif');
 
-        // Image : upload + affichage (basePath = affichage, uploadDir = stockage)
         $image = ImageField::new('image', 'Image')
-            ->setBasePath('/uploads/products')          // URL publique
-            ->setUploadDir('public/uploads/products')   // dossier réel
+            ->setBasePath('/uploads/products')
+            ->setUploadDir('public/uploads/products')
             ->setUploadedFileNamePattern('[timestamp]-[randomhash].[extension]')
-            ->setRequired(false);
+            ->setRequired(false)
+            ->setHelp('Tu peux envoyer une nouvelle image si besoin.');
 
-        // Dates (readonly)
         $createdAt = DateTimeField::new('createdAt', 'Créé le')
-            ->setFormTypeOption('disabled', true);
+            ->setFormat('dd/MM/yyyy HH:mm')
+            ->hideOnForm();
 
         $updatedAt = DateTimeField::new('updatedAt', 'Modifié le')
-            ->setFormTypeOption('disabled', true);
+            ->setFormat('dd/MM/yyyy HH:mm')
+            ->hideOnForm();
 
-        // ---------- PAGE INDEX (listing) ----------
+        // =========================
+        // PAGE INDEX
+        // =========================
         if (Crud::PAGE_INDEX === $pageName) {
-            return [$id, $image, $title, $category, $seasons, $price, $isActive, $createdAt];
+            return [
+                $id,
+                $image,
+                $title,
+                $category,
+                $seasonsDisplay,
+                $price,
+                $isActive,
+                $createdAt,
+            ];
         }
 
-        // ---------- PAGE DETAIL ----------
+        // =========================
+        // PAGE DETAIL
+        // =========================
         if (Crud::PAGE_DETAIL === $pageName) {
-            return [$id, $image, $title, $slug, $category,  $seasons,$description, $price, $isActive, $createdAt, $updatedAt];
+            return [
+                $id,
+                $image,
+                $title,
+                $slug,
+                $category,
+                $seasonsDisplay,
+                $description,
+                $price,
+                $isActive,
+                $createdAt,
+                $updatedAt,
+            ];
         }
 
-        // ---------- NEW / EDIT ----------
-        // Note : sur edit, EasyAdmin permet de remplacer l’image en re-upload
-        return [$title, $slug, $image, $category, $seasons, $description, $price, $isActive, $createdAt, $updatedAt];
+        // =========================
+        // PAGE NEW / EDIT
+        // =========================
+        return [
+            FormField::addFieldset('Informations principales'),
+
+            $title,
+            $slug,
+            $description,
+
+            FormField::addFieldset('Organisation'),
+
+            $category,
+            $seasonsForm,
+            $price,
+            $isActive,
+
+            FormField::addFieldset('Image'),
+
+            $image,
+
+            FormField::addFieldset('Informations techniques')
+                ->hideWhenCreating(),
+
+            $createdAt,
+            $updatedAt,
+        ];
     }
 
     /**
-     * Persist (création) :
-     * - createdAt + updatedAt déjà gérés par tes lifecycle callbacks,
-     *   mais on garde des sécurités.
-     * - isActive par défaut
-     * - slug auto si vide
+     * Création
      */
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
@@ -156,18 +269,14 @@ class ProductCrudController extends AbstractCrudController
             return;
         }
 
-        // Sécurité : createdAt si jamais null (normalement non avec ton __construct + PrePersist)
         if (null === $entityInstance->getCreatedAt()) {
             $entityInstance->setCreatedAt(new \DateTimeImmutable());
         }
 
-        // Sécurité : isActive par défaut
-        // (dans ton entity c’est déjà true, donc ceci est surtout une double sécurité)
         if (null === $entityInstance->isActive()) {
             $entityInstance->setIsActive(true);
         }
 
-        // Slug auto si vide
         if (!$entityInstance->getSlug() && $entityInstance->getTitle()) {
             $slug = $this->slugger->slug($entityInstance->getTitle())->lower();
             $entityInstance->setSlug($slug);
@@ -177,9 +286,7 @@ class ProductCrudController extends AbstractCrudController
     }
 
     /**
-     * Update (édition) :
-     * - slug auto si vide
-     * - updatedAt est déjà géré par PreUpdate dans ton entity
+     * Édition
      */
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
@@ -188,7 +295,6 @@ class ProductCrudController extends AbstractCrudController
             return;
         }
 
-        // Slug auto si vide (ne remplace pas un slug déjà rempli)
         if (!$entityInstance->getSlug() && $entityInstance->getTitle()) {
             $slug = $this->slugger->slug($entityInstance->getTitle())->lower();
             $entityInstance->setSlug($slug);

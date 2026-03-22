@@ -123,6 +123,21 @@ class Address
     }
 
     /**
+     * Affichage pratique dans EasyAdmin / relations.
+     */
+    public function __toString(): string
+    {
+        return sprintf(
+            '%s %s - %s, %s %s',
+            $this->firstName ?? '',
+            $this->lastName ?? '',
+            $this->address ?? '',
+            $this->postalCode ?? '',
+            $this->city ?? ''
+        );
+    }
+
+    /**
      * Retourne l'identifiant.
      */
     public function getId(): ?int
