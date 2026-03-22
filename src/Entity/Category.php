@@ -175,7 +175,7 @@ class Category
     public function getImagePath(): ?string
     {
         return $this->image
-            ? '/images/categories/' . $this->image
+            ? '/uploads/categories/' . $this->image
             : null;
     }
 }

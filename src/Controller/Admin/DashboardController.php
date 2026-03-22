@@ -68,12 +68,18 @@ class DashboardController extends AbstractDashboardController
             ->setAction(Action::INDEX)
             ->generateUrl();
 
+        $seasonUrl = $adminUrlGenerator
+            ->setController(SeasonCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
+
 
         yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
         yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
         yield MenuItem::linkToUrl('Utilsateur', 'fa fa-users', $userUrl);
         yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
         yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
+        yield MenuItem::linkToUrl('Saisons', 'fa fa-calendar', $seasonUrl);
 
     }
 

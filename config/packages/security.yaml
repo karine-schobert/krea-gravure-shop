@@ -58,6 +58,8 @@ security:
     
     - { path: ^/api/cart, roles: PUBLIC_ACCESS }
 
+    - { path: ^/api/seasons, roles: PUBLIC_ACCESS }
+
     - { path: ^/api/checkout/session, roles: IS_AUTHENTICATED_FULLY }
     - { path: ^/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private/admin, roles: ROLE_ADMIN }

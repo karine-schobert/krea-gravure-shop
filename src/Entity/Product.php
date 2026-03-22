@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\ProductRepository;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -19,67 +21,66 @@ class Product
     private ?int $id = null;
 
     // =========================
-    // Infos produit
+    // INFOS PRODUIT
     // =========================
 
-    // Titre affiché partout (admin + site)
     #[ORM\Column(length: 255)]
     private string $title = '';
 
-    // Slug pour URL (ex: /produits/mon-produit)
-    // Nullable : si tu le génères automatiquement au persist/update
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $slug = null;
 
-    // Description longue (peut être vide)
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
-    // Prix stocké en centimes (ex: 1290 = 12,90€)
     #[ORM\Column(options: ['default' => 0])]
     private int $priceCents = 0;
 
-    // Actif/inactif (pour masquer du catalogue)
     #[ORM\Column(options: ['default' => true])]
     private bool $isActive = true;
 
     // =========================
-    // Catégorie (obligatoire)
+    // RELATIONS
     // =========================
+
+    // Catégorie
     #[ORM\ManyToOne(inversedBy: 'products')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Category $category = null;
 
-    // =========================
-    // Dates (auto)
-    // =========================
-
-    // Date de création
-    #[ORM\Column]
-    private \DateTimeImmutable $createdAt;
-
-    // Date de mise à jour
-    #[ORM\Column]
-    private \DateTimeImmutable $updatedAt;
+    // Seasons (Noël, Pâques, etc.)
+    #[ORM\ManyToMany(targetEntity: Season::class, inversedBy: 'products')]
+    private Collection $seasons;
 
     // =========================
-    // Image (nom de fichier)
-    // Exemple: "porte-cle-1700000000.jpg"
-    // Upload: public/uploads/products/
+    // IMAGE
     // =========================
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $image = null;
 
+    // =========================
+    // DATES
+    // =========================
+    #[ORM\Column]
+    private \DateTimeImmutable $createdAt;
+
+    #[ORM\Column]
+    private \DateTimeImmutable $updatedAt;
+
+    // =========================
+    // CONSTRUCTEUR
+    // =========================
     public function __construct()
     {
-        // Sécurité : initialisation même si les callbacks ne tournent pas
+        $this->seasons = new ArrayCollection();
+
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
     }
 
     // =========================
-    // Lifecycle callbacks
+    // LIFECYCLE CALLBACKS
     // =========================
     #[ORM\PrePersist]
     public function onPrePersist(): void
@@ -96,7 +97,7 @@ class Product
     }
 
     // =========================
-    // Getters / Setters
+    // GETTERS / SETTERS
     // =========================
 
     public function getId(): ?int
@@ -144,7 +145,6 @@ class Product
 
     public function setPriceCents(int $priceCents): static
     {
-        // Empêche les valeurs négatives
         $this->priceCents = max(0, $priceCents);
         return $this;
     }
@@ -160,6 +160,9 @@ class Product
         return $this;
     }
 
+    // =========================
+    // CATEGORY
+    // =========================
     public function getCategory(): ?Category
     {
         return $this->category;
@@ -171,12 +174,60 @@ class Product
         return $this;
     }
 
+    // =========================
+    // SEASONS
+    // =========================
+
+    /**
+     * @return Collection<int, Season>
+     */
+    public function getSeasons(): Collection
+    {
+        return $this->seasons;
+    }
+
+    public function addSeason(Season $season): static
+    {
+        if (!$this->seasons->contains($season)) {
+            $this->seasons->add($season);
+        }
+        return $this;
+    }
+
+    public function removeSeason(Season $season): static
+    {
+        $this->seasons->removeElement($season);
+        return $this;
+    }
+
+    // =========================
+    // IMAGE
+    // =========================
+    public function getImage(): ?string
+    {
+        return $this->image;
+    }
+
+    public function setImage(?string $image): self
+    {
+        $image = $image !== null ? trim($image) : null;
+        $this->image = $image === '' ? null : $image;
+        return $this;
+    }
+
+    public function getImagePath(): ?string
+    {
+        return $this->image ? '/uploads/products/' . $this->image : null;
+    }
+
+    // =========================
+    // DATES
+    // =========================
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
 
-    // Utile si tu importes via fixtures
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
@@ -194,39 +245,11 @@ class Product
         return $this;
     }
 
-    public function getImage(): ?string
-    {
-        return $this->image;
-    }
-
-    // Correction : trim + null si vide
-    public function setImage(?string $image): self
-    {
-        $image = $image !== null ? trim($image) : null;
-        $this->image = $image === '' ? null : $image;
-        return $this;
-    }
-
-    // Bonus pratique (optionnel) : chemin public complet
-    // Exemple: "/uploads/products/xxx.jpg"
-    public function getImagePath(): ?string
-    {
-        return $this->image ? '/uploads/products/' . $this->image : null;
-    }
-
-    /**
-     * Permet à EasyAdmin (et Symfony en général)
-     * de convertir automatiquement un Product en string.
-     *
-     * 👉 utilisé pour :
-     * - les listes déroulantes (relations ManyToMany)
-     * - les affichages dans l'admin
-     *
-     * Sans cette méthode → erreur :
-     * "Object of class Product could not be converted to string"
-     */
+    // =========================
+    // ADMIN DISPLAY
+    // =========================
     public function __toString(): string
     {
-        return $this->getTitle() ?? 'Produit';
+        return $this->getTitle() ?: 'Produit';
     }
 }

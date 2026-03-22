@@ -22,6 +22,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
+
 class ProductCrudController extends AbstractCrudController
 {
     public function __construct(private readonly SluggerInterface $slugger)
@@ -91,6 +92,15 @@ class ProductCrudController extends AbstractCrudController
         // Catégorie (ManyToOne)
         $category = AssociationField::new('category', 'Catégorie');
 
+        //Season
+            $seasons = AssociationField::new('seasons', 'Saisons')
+            ->formatValue(function ($value, $entity) {
+                return implode(', ', array_map(
+                    fn($season) => $season->getName(),
+                    $entity->getSeasons()->toArray()
+                ));
+            });
+
         // Description longue (cache en listing)
         $description = TextareaField::new('description', 'Description')
             ->hideOnIndex();
@@ -119,17 +129,17 @@ class ProductCrudController extends AbstractCrudController
 
         // ---------- PAGE INDEX (listing) ----------
         if (Crud::PAGE_INDEX === $pageName) {
-            return [$id, $image, $title, $category, $price, $isActive, $createdAt];
+            return [$id, $image, $title, $category, $seasons, $price, $isActive, $createdAt];
         }
 
         // ---------- PAGE DETAIL ----------
         if (Crud::PAGE_DETAIL === $pageName) {
-            return [$id, $image, $title, $slug, $category, $description, $price, $isActive, $createdAt, $updatedAt];
+            return [$id, $image, $title, $slug, $category,  $seasons,$description, $price, $isActive, $createdAt, $updatedAt];
         }
 
         // ---------- NEW / EDIT ----------
         // Note : sur edit, EasyAdmin permet de remplacer l’image en re-upload
-        return [$title, $slug, $image, $category, $description, $price, $isActive, $createdAt, $updatedAt];
+        return [$title, $slug, $image, $category, $seasons, $description, $price, $isActive, $createdAt, $updatedAt];
     }
 
     /**

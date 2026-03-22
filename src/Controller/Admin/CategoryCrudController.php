@@ -26,6 +26,9 @@ class CategoryCrudController extends AbstractCrudController
         return Category::class;
     }
 
+    // =========================
+    // CONFIG CRUD
+    // =========================
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
@@ -36,11 +39,17 @@ class CategoryCrudController extends AbstractCrudController
             ->setSearchFields(['id', 'name', 'slug']);
     }
 
+    // =========================
+    // ACTIONS
+    // =========================
     public function configureActions(Actions $actions): Actions
     {
         return $actions->add(Crud::PAGE_INDEX, Action::DETAIL);
     }
 
+    // =========================
+    // FILTRES
+    // =========================
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
@@ -48,6 +57,9 @@ class CategoryCrudController extends AbstractCrudController
             ->add(TextFilter::new('slug', 'Slug'));
     }
 
+    // =========================
+    // FIELDS
+    // =========================
     public function configureFields(string $pageName): iterable
     {
         $id = IdField::new('id')->onlyOnIndex();
@@ -57,11 +69,12 @@ class CategoryCrudController extends AbstractCrudController
         $slug = TextField::new('slug', 'Slug')
             ->setHelp('Laisse vide pour auto-générer depuis le nom.');
 
+        // 🔥 IMAGE CATÉGORIE (CORRIGÉ)
         $image = ImageField::new('image', 'Image')
-            ->setBasePath('images/categories')
-            ->setUploadDir('public/images/categories')
-            ->setRequired(false)
-            ->setUploadedFileNamePattern('[slug]-[timestamp].[extension]');
+            ->setBasePath('/uploads/categories')            // 👉 affichage front/admin
+            ->setUploadDir('public/uploads/categories')     // 👉 stockage réel
+            ->setUploadedFileNamePattern('[slug].[extension]') // 👉 noel.jpg
+            ->setRequired(false);
 
         $createdAt = DateTimeField::new('createdAt', 'Créé le')
             ->setFormTypeOption('disabled', true);
@@ -69,20 +82,29 @@ class CategoryCrudController extends AbstractCrudController
         $products = AssociationField::new('products', 'Produits')
             ->onlyOnDetail();
 
+        // =========================
         // INDEX
+        // =========================
         if (Crud::PAGE_INDEX === $pageName) {
             return [$id, $name, $slug, $image, $createdAt];
         }
 
+        // =========================
         // DETAIL
+        // =========================
         if (Crud::PAGE_DETAIL === $pageName) {
             return [$id, $name, $slug, $image, $createdAt, $products];
         }
 
+        // =========================
         // NEW / EDIT
+        // =========================
         return [$name, $slug, $image, $createdAt];
     }
 
+    // =========================
+    // PERSIST (CREATE)
+    // =========================
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Category) {
@@ -90,12 +112,12 @@ class CategoryCrudController extends AbstractCrudController
             return;
         }
 
-        // createdAt auto
+        // 📅 createdAt auto
         if (null === $entityInstance->getCreatedAt()) {
             $entityInstance->setCreatedAt(new \DateTimeImmutable());
         }
 
-        // slug auto si vide
+        // 🔥 slug auto
         if (!$entityInstance->getSlug() && $entityInstance->getName()) {
             $slug = $this->slugger->slug($entityInstance->getName())->lower();
             $entityInstance->setSlug($slug);
@@ -104,6 +126,9 @@ class CategoryCrudController extends AbstractCrudController
         parent::persistEntity($entityManager, $entityInstance);
     }
 
+    // =========================
+    // UPDATE
+    // =========================
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Category) {
@@ -111,7 +136,7 @@ class CategoryCrudController extends AbstractCrudController
             return;
         }
 
-        // slug auto si vide (ne remplace pas un slug déjà rempli)
+        // 🔥 slug auto si vide
         if (!$entityInstance->getSlug() && $entityInstance->getName()) {
             $slug = $this->slugger->slug($entityInstance->getName())->lower();
             $entityInstance->setSlug($slug);
