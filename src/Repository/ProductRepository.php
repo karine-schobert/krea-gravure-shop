@@ -88,7 +88,7 @@ class ProductRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
-     /**
+    /**
      * ✅ Produits actifs paginés, filtre optionnel par catégorie (slug)
      *
      * @return array{items: Product[], total:int, page:int, limit:int, pages:int}
@@ -102,7 +102,7 @@ class ProductRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')->addSelect('c')
             ->andWhere('p.isActive = :active')
-                ->setParameter('active', true);
+            ->setParameter('active', true);
 
         if ($categorySlug) {
             $qb->andWhere('c.slug = :cslug')
@@ -133,5 +133,22 @@ class ProductRepository extends ServiceEntityRepository
             'limit' => $limit,
             'pages' => $pages,
         ];
-}
+    }
+    public function findAllActiveForShop(?string $categorySlug = null): array
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->leftJoin('p.category', 'c')
+            ->addSelect('c')
+            ->andWhere('p.isActive = :active')
+            ->setParameter('active', true)
+            ->orderBy('p.id', 'DESC');
+
+        if ($categorySlug) {
+            $qb
+                ->andWhere('c.slug = :category')
+                ->setParameter('category', $categorySlug);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
 }

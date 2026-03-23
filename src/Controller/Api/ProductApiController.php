@@ -20,7 +20,7 @@ class ProductApiController extends AbstractController
     /**
      * ✅ GET /api/products
      * Supporte :
-     * - ?page=1&limit=12
+     * - ?page=1&limit=200
      * - ?category=bijoux
      *
      * Retour :
@@ -31,8 +31,8 @@ class ProductApiController extends AbstractController
     {
         $request = $this->requestStack->getCurrentRequest();
 
-        $page = (int) ($request?->query->get('page', 1) ?? 1);
-        $limit = (int) ($request?->query->get('limit', 12) ?? 12);
+        $page = max(1, (int) ($request?->query->get('page', 1) ?? 1));
+        $limit = max(1, (int) ($request?->query->get('limit', 200) ?? 200));
         $category = $request?->query->get('category'); // slug catégorie optionnel
 
         $result = $this->repo->findActivePaginated($category ?: null, $page, $limit);
@@ -47,6 +47,33 @@ class ProductApiController extends AbstractController
                 'page' => $result['page'],
                 'limit' => $result['limit'],
                 'pages' => $result['pages'],
+                'category' => $category ?: null,
+            ],
+        ]);
+    }
+
+    /**
+     * ✅ GET /api/shop/products
+     * Route dédiée à la boutique front
+     * - sans pagination
+     * - produits actifs uniquement
+     * - filtre catégorie optionnel via ?category=bijoux
+     */
+    #[Route('/api/shop/products', name: 'api_shop_products_list', methods: ['GET'])]
+    public function shopList(): JsonResponse
+    {
+        $request = $this->requestStack->getCurrentRequest();
+        $category = $request?->query->get('category');
+
+        $products = $this->repo->findAllActiveForShop($category ?: null);
+
+        $base = $this->getBaseUrl();
+        $items = array_map(fn(Product $p) => $this->toArray($p, $base), $products);
+
+        return $this->json([
+            'items' => $items,
+            'meta' => [
+                'total' => count($items),
                 'category' => $category ?: null,
             ],
         ]);
@@ -80,7 +107,6 @@ class ProductApiController extends AbstractController
     {
         $product = $this->repo->findOneBySlug($slug);
 
-        // ✅ on cache aussi les inactifs en public
         if (!$product || !$product->isActive()) {
             return $this->json(['message' => 'Product not found'], Response::HTTP_NOT_FOUND);
         }
@@ -115,21 +141,14 @@ class ProductApiController extends AbstractController
             'priceCents' => $p->getPriceCents(),
             'description' => $p->getDescription(),
 
-            // Images
-            'imageUrl' => $imagePath ? $base . $imagePath : null,
-            'imagePath' => $imagePath,
+            'imageUrl' => $imagePath ? $base . str_replace('\\', '/', $imagePath) : null,
+            'imagePath' => $imagePath ? str_replace('\\', '/', $imagePath) : null,
 
-            // Category objet (cohérent avec /api/categories/{slug}/products)
             'category' => $cat ? [
                 'id' => $cat->getId(),
                 'name' => $cat->getName(),
                 'slug' => $cat->getSlug(),
             ] : null,
-
-            // 🔒 optionnel en public (à éviter si tu veux une API clean)
-            // 'isActive' => $p->isActive(),
         ];
     }
-
- 
 }
