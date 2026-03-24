@@ -8,7 +8,6 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ProductCollectionRepository::class)]
-#[ORM\HasLifecycleCallbacks]
 class ProductCollection
 {
     #[ORM\Id]
@@ -16,74 +15,45 @@ class ProductCollection
     #[ORM\Column]
     private ?int $id = null;
 
-    /**
-     * Nom de la collection.
-     * Ex : Chic Noir, Naturelle, Noël Tradition
-     */
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    /**
-     * Slug unique pour les URLs ou l'identification interne.
-     * Ex : chic-noir, naturelle, noel-tradition
-     */
     #[ORM\Column(length: 255, unique: true)]
     private ?string $slug = null;
 
-    /**
-     * Petite description de la collection.
-     */
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
-    /**
-     * Nom du fichier image ou chemin relatif.
-     * Ex : chic-noir.jpg
-     */
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $image = null;
+    private ?string $shortDescription = null;
 
-    /**
-     * Position pour trier les collections dans l'admin ou le front.
-     * Plus le chiffre est petit, plus la collection remonte.
-     */
-    #[ORM\Column]
-    private int $position = 0;
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $imagePath = null;
 
-    /**
-     * Permet d'activer / désactiver une collection.
-     */
     #[ORM\Column]
     private bool $isActive = true;
 
-    /**
-     * Date de création.
-     */
     #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    private bool $isFeatured = false;
 
-    /**
-     * Produits liés à cette collection.
-     */
+    #[ORM\Column]
+    private int $position = 0;
+
     #[ORM\OneToMany(mappedBy: 'productCollection', targetEntity: Product::class)]
     private Collection $products;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $createdAt = null;
 
     public function __construct()
     {
         $this->products = new ArrayCollection();
-    }
-
-    #[ORM\PrePersist]
-    public function setCreatedAtValue(): void
-    {
-        if ($this->createdAt === null) {
-            $this->createdAt = new \DateTimeImmutable();
-        }
+        $this->createdAt = new \DateTimeImmutable();
     }
 
     public function __toString(): string
     {
-        return $this->name ?? 'Collection sans nom';
+        return $this->name ?? 'Collection';
     }
 
     public function getId(): ?int
@@ -98,8 +68,7 @@ class ProductCollection
 
     public function setName(string $name): static
     {
-        $this->name = trim($name);
-
+        $this->name = $name;
         return $this;
     }
 
@@ -110,8 +79,7 @@ class ProductCollection
 
     public function setSlug(string $slug): static
     {
-        $this->slug = trim($slug);
-
+        $this->slug = $slug;
         return $this;
     }
 
@@ -122,45 +90,29 @@ class ProductCollection
 
     public function setDescription(?string $description): static
     {
-        $this->description = $description !== null ? trim($description) : null;
-
+        $this->description = $description;
         return $this;
     }
 
-    public function getImage(): ?string
+    public function getShortDescription(): ?string
     {
-        return $this->image;
+        return $this->shortDescription;
     }
 
-    public function setImage(?string $image): static
+    public function setShortDescription(?string $shortDescription): static
     {
-        $this->image = $image !== null ? trim($image) : null;
-
+        $this->shortDescription = $shortDescription;
         return $this;
     }
 
-    /**
-     * Retourne le chemin web complet relatif si une image existe.
-     * Ex : /uploads/collections/chic-noir.jpg
-     */
     public function getImagePath(): ?string
     {
-        if (!$this->image) {
-            return null;
-        }
-
-        return '/uploads/collections/' . $this->image;
+        return $this->imagePath;
     }
 
-    public function getPosition(): int
+    public function setImagePath(?string $imagePath): static
     {
-        return $this->position;
-    }
-
-    public function setPosition(int $position): static
-    {
-        $this->position = $position;
-
+        $this->imagePath = $imagePath;
         return $this;
     }
 
@@ -172,8 +124,34 @@ class ProductCollection
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
-
         return $this;
+    }
+
+    public function isFeatured(): bool
+    {
+        return $this->isFeatured;
+    }
+
+    public function setIsFeatured(bool $isFeatured): static
+    {
+        $this->isFeatured = $isFeatured;
+        return $this;
+    }
+
+    public function getPosition(): int
+    {
+        return $this->position;
+    }
+
+    public function setPosition(int $position): static
+    {
+        $this->position = $position;
+        return $this;
+    }
+
+    public function getProducts(): Collection
+    {
+        return $this->products;
     }
 
     public function getCreatedAt(): ?\DateTimeImmutable
@@ -181,39 +159,9 @@ class ProductCollection
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(?\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Product>
-     */
-    public function getProducts(): Collection
-    {
-        return $this->products;
-    }
-
-    public function addProduct(Product $product): static
-    {
-        if (!$this->products->contains($product)) {
-            $this->products->add($product);
-            $product->setProductCollection($this);
-        }
-
-        return $this;
-    }
-
-    public function removeProduct(Product $product): static
-    {
-        if ($this->products->removeElement($product)) {
-            if ($product->getProductCollection() === $this) {
-                $product->setProductCollection(null);
-            }
-        }
-
         return $this;
     }
 }

@@ -47,12 +47,7 @@ class ProductCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, 'Détail du produit')
             ->setDefaultSort(['id' => 'DESC'])
             ->showEntityActionsInlined()
-            ->setSearchFields([
-                'id',
-                'title',
-                'slug',
-                'description',
-            ]);
+            ->setSearchFields(['id','title','slug','description']);
     }
 
     /**

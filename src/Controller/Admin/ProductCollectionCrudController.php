@@ -50,7 +50,7 @@ class ProductCollectionCrudController extends AbstractCrudController
                 'id' => 'DESC',
             ])
             ->showEntityActionsInlined()
-            ->setSearchFields(['id', 'name', 'slug', 'description']);
+            ->setSearchFields(['id', 'name', 'slug', 'description','shortDescription']);
     }
 
     // =========================
@@ -103,10 +103,6 @@ class ProductCollectionCrudController extends AbstractCrudController
             ->add(TextFilter::new('slug', 'Slug'))
             ->add(BooleanFilter::new('isActive', 'Active'));
     }
-
-    // =========================
-    // CHAMPS
-    // =========================
     public function configureFields(string $pageName): iterable
     {
         $id = IdField::new('id', 'ID')
@@ -120,9 +116,13 @@ class ProductCollectionCrudController extends AbstractCrudController
 
         $description = TextareaField::new('description', 'Description')
             ->setRequired(false)
-            ->hideOnIndex();
+              ->setHelp('Description complète de la collection.');
 
-        $image = ImageField::new('image', 'Image')
+        $shortDescription = TextareaField::new('shortDescription', 'Description courte')
+            ->setRequired(false)
+            ->setHelp('Petit texte court pour la homepage ou les cartes collection.');
+
+        $image = ImageField::new('imagePath', 'Image')
             ->setBasePath('/uploads/collections')
             ->setUploadDir('public/uploads/collections')
             ->setUploadedFileNamePattern('[slug].[extension]')
@@ -132,6 +132,9 @@ class ProductCollectionCrudController extends AbstractCrudController
             ->setHelp('Plus le chiffre est petit, plus la collection remonte.');
 
         $isActive = BooleanField::new('isActive', 'Active');
+
+        $isFeatured = BooleanField::new('isFeatured', 'Mise en avant')
+            ->setHelp('Permet d’afficher cette collection sur la homepage.');
 
         $createdAt = DateTimeField::new('createdAt', 'Créée le')
             ->setFormTypeOption('disabled', true);
@@ -147,9 +150,12 @@ class ProductCollectionCrudController extends AbstractCrudController
                 $id,
                 $name,
                 $slug,
+                $description,
+                $shortDescription,
                 $image,
                 $position,
                 $isActive,
+                $isFeatured,
                 $createdAt,
             ];
         }
@@ -165,12 +171,14 @@ class ProductCollectionCrudController extends AbstractCrudController
                 $name,
                 $slug,
                 $description,
+                $shortDescription,
                 $image,
 
                 FormField::addFieldset('Organisation'),
 
                 $position,
                 $isActive,
+                $isFeatured,
 
                 FormField::addFieldset('Informations techniques'),
 
@@ -188,6 +196,7 @@ class ProductCollectionCrudController extends AbstractCrudController
             $name,
             $slug,
             $description,
+            $shortDescription,
 
             FormField::addFieldset('Image'),
 
@@ -197,6 +206,7 @@ class ProductCollectionCrudController extends AbstractCrudController
 
             $position,
             $isActive,
+            $isFeatured,
 
             FormField::addFieldset('Informations techniques'),
 

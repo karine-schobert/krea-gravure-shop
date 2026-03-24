@@ -31,6 +31,34 @@ class ProductCollectionApiController extends AbstractController
         return $this->json($data);
     }
 
+     #[Route('/featured', name: 'featured', methods: ['GET'])]
+    public function featured(ProductCollectionRepository $productCollectionRepository): JsonResponse
+    {
+        $collections = $productCollectionRepository->findFeaturedOrdered();
+
+        $data = array_map(function ($collection) {
+            return [
+                'id' => $collection->getId(),
+                'name' => $collection->getName(),
+                'slug' => $collection->getSlug(),
+                'description' => $collection->getDescription(),
+                'shortDescription' => $collection->getShortDescription(),
+                'image' => $collection->getImagePath(),
+                'position' => $collection->getPosition(),
+                'isActive' => $collection->isActive(),
+                'isFeatured' => $collection->isFeatured(),
+                'productsCount' => count(
+                    array_filter(
+                        $collection->getProducts()->toArray(),
+                        fn($product) => $product->isActive()
+                    )
+                ),
+            ];
+        }, $collections);
+
+        return $this->json($data);
+    }
+
     #[Route('/{slug}', name: 'show', methods: ['GET'])]
     public function show(string $slug, ProductCollectionRepository $productCollectionRepository): JsonResponse
     {

@@ -37,4 +37,17 @@ class ProductCollectionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    public function findFeaturedOrdered(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.isActive = :active')
+            ->andWhere('c.isFeatured = :featured')
+            ->setParameter('active', true)
+            ->setParameter('featured', true)
+            ->orderBy('c.position', 'ASC')
+            ->addOrderBy('c.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }
