@@ -53,6 +53,7 @@ security:
     - { path: ^/api/shop/page, roles: PUBLIC_ACCESS }
 
     - { path: ^/api/products, roles: PUBLIC_ACCESS }
+    - { path: ^/api/collections, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/[a-z0-9-]+$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/.+/products$, roles: PUBLIC_ACCESS }

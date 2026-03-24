@@ -82,15 +82,23 @@ class DashboardController extends AbstractDashboardController
     ->setAction(Action::INDEX)
     ->generateUrl();
 
+    $productCollectionUrl = $adminUrlGenerator
+    ->setController(ProductCollectionCrudController::class)
+    ->setAction(Action::INDEX)
+    ->generateUrl();
+
 
     yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
-    yield MenuItem::linkToUrl('Page boutique', 'fa fa-store', $shopPageSettingsUrl);
     yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
-    yield MenuItem::linkToUrl('Clients', 'fa fa-users', $customerUrl);
-    yield MenuItem::linkToUrl('Administrateurs', 'fa fa-user-shield', $adminUserUrl);
-    yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
-    yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
+    yield MenuItem::linkToUrl('Collections', 'fa fa-layer-group', $productCollectionUrl);
     yield MenuItem::linkToUrl('Saisons', 'fa fa-calendar', $seasonUrl);
+    yield MenuItem::linkToUrl('Page boutique', 'fa fa-store', $shopPageSettingsUrl);
+
+    yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
+    yield MenuItem::linkToUrl('Clients', 'fa fa-users', $customerUrl);
+
+    yield MenuItem::linkToUrl('Administrateurs', 'fa fa-user-shield', $adminUserUrl);
+    yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
 
 }
 

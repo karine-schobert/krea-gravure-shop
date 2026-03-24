@@ -47,11 +47,16 @@ class ProductCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, 'Détail du produit')
             ->setDefaultSort(['id' => 'DESC'])
             ->showEntityActionsInlined()
-            ->setSearchFields(['id', 'title', 'slug', 'description']);
+            ->setSearchFields([
+                'id',
+                'title',
+                'slug',
+                'description',
+            ]);
     }
 
     /**
-     * Actions et boutons colorés
+     * Actions et boutons personnalisés
      */
     public function configureActions(Actions $actions): Actions
     {
@@ -88,20 +93,17 @@ class ProductCrudController extends AbstractCrudController
                 ->setIcon('fa fa-trash')
                 ->addCssClass('crud-action-delete'))
 
-            // DETAIL : souvent déjà présente, donc update
             ->update(Crud::PAGE_DETAIL, Action::INDEX, fn(Action $action) => $action
                 ->setLabel('Retour à la liste')
                 ->setIcon('fa fa-arrow-left')
                 ->addCssClass('crud-action-back'))
 
-            // EDIT : on ajoute l'action
             ->add(Crud::PAGE_EDIT, Action::INDEX)
             ->update(Crud::PAGE_EDIT, Action::INDEX, fn(Action $action) => $action
                 ->setLabel('Retour à la liste')
                 ->setIcon('fa fa-arrow-left')
                 ->addCssClass('crud-action-back'))
 
-            // NEW : on ajoute l'action
             ->add(Crud::PAGE_NEW, Action::INDEX)
             ->update(Crud::PAGE_NEW, Action::INDEX, fn(Action $action) => $action
                 ->setLabel('Retour à la liste')
@@ -124,6 +126,7 @@ class ProductCrudController extends AbstractCrudController
             ->add(TextFilter::new('title', 'Titre'))
             ->add(TextFilter::new('slug', 'Slug'))
             ->add(EntityFilter::new('category', 'Catégorie'))
+            ->add(EntityFilter::new('productCollection', 'Collection'))
             ->add(EntityFilter::new('seasons', 'Saisons'))
             ->add(NumericFilter::new('priceCents', 'Prix (centimes)'))
             ->add(BooleanFilter::new('isActive', 'Actif'));
@@ -149,7 +152,12 @@ class ProductCrudController extends AbstractCrudController
         $category = AssociationField::new('category', 'Catégorie')
             ->setHelp('Choisis la catégorie principale du produit.');
 
-        // Sur index / detail : affichage texte
+        $productCollection = AssociationField::new('productCollection', 'Collection')
+            ->setRequired(false)
+            ->autocomplete()
+            ->setHelp('Associe ce produit à une collection si besoin.');
+
+        // Affichage texte des saisons sur index / détail
         $seasonsDisplay = AssociationField::new('seasons', 'Saisons')
             ->formatValue(function ($value, $entity) {
                 $seasons = $entity->getSeasons()->toArray();
@@ -164,7 +172,7 @@ class ProductCrudController extends AbstractCrudController
                 ));
             });
 
-        // Sur form : vrai champ relation
+        // Champ relation saisons sur formulaire
         $seasonsForm = AssociationField::new('seasons', 'Saisons')
             ->setHelp('Associe ce produit à une ou plusieurs saisons.')
             ->setFormTypeOption('by_reference', false);
@@ -204,6 +212,7 @@ class ProductCrudController extends AbstractCrudController
                 $image,
                 $title,
                 $category,
+                $productCollection,
                 $seasonsDisplay,
                 $price,
                 $isActive,
@@ -221,6 +230,7 @@ class ProductCrudController extends AbstractCrudController
                 $title,
                 $slug,
                 $category,
+                $productCollection,
                 $seasonsDisplay,
                 $description,
                 $price,
@@ -243,6 +253,7 @@ class ProductCrudController extends AbstractCrudController
             FormField::addFieldset('Organisation'),
 
             $category,
+            $productCollection,
             $seasonsForm,
             $price,
             $isActive,

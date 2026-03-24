@@ -52,6 +52,11 @@ class Product
     #[ORM\ManyToMany(targetEntity: Season::class, inversedBy: 'products')]
     private Collection $seasons;
 
+    // Collection 
+    #[ORM\ManyToOne(inversedBy: 'products')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?ProductCollection $productCollection = null;
+
     // =========================
     // IMAGE
     // =========================
@@ -197,6 +202,21 @@ class Product
     public function removeSeason(Season $season): static
     {
         $this->seasons->removeElement($season);
+        return $this;
+    }
+    // =========================
+    // COLLECTIN DE PRODUIT
+    // =========================
+
+        public function getProductCollection(): ?ProductCollection
+    {
+        return $this->productCollection;
+    }
+
+    public function setProductCollection(?ProductCollection $productCollection): static
+    {
+        $this->productCollection = $productCollection;
+
         return $this;
     }
 
