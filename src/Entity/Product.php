@@ -70,9 +70,25 @@ class Product
      * - Lot de 4
      * - Offre saisonnière
      */
- 
+
     #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductOffer::class, cascade: ['persist'], orphanRemoval: true)]
     private Collection $offers;
+
+    /**
+     * Catégories secondaires du produit.
+     * Permet de rattacher un produit à plusieurs univers sans casser la catégorie principale.
+     */
+    #[ORM\ManyToMany(targetEntity: Category::class)]
+    #[ORM\JoinTable(name: 'product_additional_categories')]
+    private Collection $additionalCategories;
+
+    /**
+     * Collections secondaires du produit.
+     * Permet de rattacher un produit à plusieurs collections sans casser la collection principale.
+     */
+    #[ORM\ManyToMany(targetEntity: ProductCollection::class)]
+    #[ORM\JoinTable(name: 'product_additional_collections')]
+    private Collection $additionalCollections;
 
     // =========================
     // IMAGE
@@ -96,6 +112,8 @@ class Product
     {
         $this->seasons = new ArrayCollection();
         $this->offers = new ArrayCollection();
+        $this->additionalCategories = new ArrayCollection();
+        $this->additionalCollections = new ArrayCollection();
 
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
@@ -276,12 +294,56 @@ class Product
      * Supprime une offre commerciale du produit.
      */
     public function removeOffer(ProductOffer $offer): static
-    {
-        if ($this->offers->removeElement($offer)) {
-            if ($offer->getProduct() === $this) {
-                $offer->setProduct(null);
-            }
+        {
+            $this->offers->removeElement($offer);
+
+            return $this;
         }
+
+    /**
+     * @return Collection<int, Category>
+     */
+    public function getAdditionalCategories(): Collection
+    {
+        return $this->additionalCategories;
+    }
+
+    public function addAdditionalCategory(Category $category): static
+    {
+        if (!$this->additionalCategories->contains($category)) {
+            $this->additionalCategories->add($category);
+        }
+
+        return $this;
+    }
+
+    public function removeAdditionalCategory(Category $category): static
+    {
+        $this->additionalCategories->removeElement($category);
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProductCollection>
+     */
+    public function getAdditionalCollections(): Collection
+    {
+        return $this->additionalCollections;
+    }
+
+    public function addAdditionalCollection(ProductCollection $collection): static
+    {
+        if (!$this->additionalCollections->contains($collection)) {
+            $this->additionalCollections->add($collection);
+        }
+
+        return $this;
+    }
+
+    public function removeAdditionalCollection(ProductCollection $collection): static
+    {
+        $this->additionalCollections->removeElement($collection);
 
         return $this;
     }

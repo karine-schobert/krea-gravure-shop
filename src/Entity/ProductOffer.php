@@ -10,6 +10,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class ProductOffer
 {
+    public const SALE_TYPE_UNIT = 'unit';
+    public const SALE_TYPE_BUNDLE = 'bundle';
+    public const SALE_TYPE_SEASONAL = 'seasonal';
+    public const SALE_TYPE_SPECIAL = 'special';
+    public const SALE_TYPE_FULL_COLLECTION = 'full_collection';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -38,7 +44,7 @@ class ProductOffer
 
     /**
      * Type d’offre.
-     * Exemples conseillés :
+     * Valeurs conseillées :
      * - unit
      * - bundle
      * - seasonal
@@ -46,7 +52,7 @@ class ProductOffer
      * - full_collection
      */
     #[ORM\Column(length: 50)]
-    private ?string $saleType = null;
+    private ?string $saleType = self::SALE_TYPE_UNIT;
 
     /**
      * Quantité de pièces incluses dans l’offre.
@@ -55,7 +61,7 @@ class ProductOffer
      * - 4
      * - 8
      */
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => 1])]
     private int $quantity = 1;
 
     /**
@@ -68,7 +74,7 @@ class ProductOffer
     private int $priceCents = 0;
 
     /**
-     * Permet de savoir si cette offre est personnalisable.
+     * Indique si cette offre permet une personnalisation.
      */
     #[ORM\Column(options: ['default' => false])]
     private bool $isCustomizable = false;
@@ -103,7 +109,7 @@ class ProductOffer
     private ?int $customizationMaxLength = null;
 
     /**
-     * Indique si la personnalisation est obligatoire pour cette offre.
+     * Indique si la personnalisation est obligatoire.
      */
     #[ORM\Column(options: ['default' => false])]
     private bool $isCustomizationRequired = false;
@@ -117,8 +123,8 @@ class ProductOffer
     /**
      * Ordre d’affichage des offres sur la fiche produit.
      */
-    #[ORM\Column(nullable: true)]
-    private ?int $position = null;
+    #[ORM\Column(options: ['default' => 0])]
+    private int $position = 0;
 
     /**
      * Date de début de validité de l’offre.
@@ -148,6 +154,7 @@ class ProductOffer
     // =========================
     // LIFECYCLE CALLBACKS
     // =========================
+
     #[ORM\PrePersist]
     public function onPrePersist(): void
     {
@@ -168,6 +175,44 @@ class ProductOffer
     public function __toString(): string
     {
         return $this->title ?? 'Offre';
+    }
+
+    /**
+     * Retourne la liste des types d’offres disponibles.
+     * Très utile pour les formulaires.
+     */
+    public static function getSaleTypeChoices(): array
+    {
+        return [
+            'À l’unité' => self::SALE_TYPE_UNIT,
+            'Lot' => self::SALE_TYPE_BUNDLE,
+            'Offre saisonnière' => self::SALE_TYPE_SEASONAL,
+            'Offre spéciale' => self::SALE_TYPE_SPECIAL,
+            'Collection complète' => self::SALE_TYPE_FULL_COLLECTION,
+        ];
+    }
+
+    /**
+     * Permet de savoir si l’offre est actuellement disponible
+     * en tenant compte de son activation et des dates éventuelles.
+     */
+    public function isCurrentlyAvailable(): bool
+    {
+        if (!$this->isActive) {
+            return false;
+        }
+
+        $now = new \DateTime();
+
+        if ($this->startsAt !== null && $this->startsAt > $now) {
+            return false;
+        }
+
+        if ($this->endsAt !== null && $this->endsAt < $now) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -253,7 +298,7 @@ class ProductOffer
     /**
      * Retourne le prix de l’offre en centimes.
      */
-    public function getPriceCents(): ?int
+    public function getPriceCents(): int
     {
         return $this->priceCents;
     }
@@ -278,9 +323,7 @@ class ProductOffer
 
     /**
      * Définit si l’offre est personnalisable.
-     */
-       /**
-     * Définit si l’offre est personnalisable.
+     * Si on désactive la personnalisation, on nettoie les champs liés.
      */
     public function setIsCustomizable(bool $isCustomizable): static
     {
@@ -295,6 +338,7 @@ class ProductOffer
 
         return $this;
     }
+
     /**
      * Retourne le libellé du champ de personnalisation.
      */
@@ -361,10 +405,14 @@ class ProductOffer
 
     /**
      * Définit si la personnalisation est obligatoire.
+     * Impossible d’avoir une personnalisation obligatoire
+     * si l’offre n’est pas personnalisable.
      */
     public function setIsCustomizationRequired(bool $isCustomizationRequired): static
     {
-        $this->isCustomizationRequired = $isCustomizationRequired;
+        $this->isCustomizationRequired = $this->isCustomizable
+            ? $isCustomizationRequired
+            : false;
 
         return $this;
     }
@@ -390,7 +438,7 @@ class ProductOffer
     /**
      * Retourne la position d’affichage.
      */
-    public function getPosition(): ?int
+    public function getPosition(): int
     {
         return $this->position;
     }
@@ -400,7 +448,7 @@ class ProductOffer
      */
     public function setPosition(?int $position): static
     {
-        $this->position = $position;
+        $this->position = $position ?? 0;
 
         return $this;
     }

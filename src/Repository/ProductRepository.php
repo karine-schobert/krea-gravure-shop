@@ -10,7 +10,6 @@ use Doctrine\Persistence\ManagerRegistry;
  * ProductRepository
  *
  * Centralise les requêtes Doctrine pour l'entité Product.
- * Objectif : garder les Controllers simples et lisibles.
  *
  * @extends ServiceEntityRepository<Product>
  */
@@ -22,13 +21,17 @@ class ProductRepository extends ServiceEntityRepository
     }
 
     /**
-     * ✅ Trouve 1 produit via son slug (avec sa catégorie join)
-     * Utilisé typiquement par : GET /api/products/{slug}
+     * Trouve 1 produit via son slug
+     * avec ses relations utiles.
      */
     public function findOneBySlug(string $slug): ?Product
     {
         return $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')->addSelect('c')
+            ->leftJoin('p.productCollection', 'pc')->addSelect('pc')
+            ->leftJoin('p.additionalCategories', 'ac')->addSelect('ac')
+            ->leftJoin('p.additionalCollections', 'apc')->addSelect('apc')
+            ->leftJoin('p.offers', 'offers')->addSelect('offers')
             ->andWhere('p.slug = :slug')
             ->setParameter('slug', $slug)
             ->getQuery()
@@ -36,8 +39,7 @@ class ProductRepository extends ServiceEntityRepository
     }
 
     /**
-     * ✅ Liste tous les produits (avec catégories), tri id DESC
-     * Utilisé en admin / debug / endpoints internes
+     * Liste tous les produits avec catégories, tri id DESC
      *
      * @return Product[]
      */
@@ -45,14 +47,17 @@ class ProductRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')->addSelect('c')
+            ->leftJoin('p.productCollection', 'pc')->addSelect('pc')
+            ->leftJoin('p.additionalCategories', 'ac')->addSelect('ac')
+            ->leftJoin('p.additionalCollections', 'apc')->addSelect('apc')
             ->orderBy('p.id', 'DESC')
+            ->distinct()
             ->getQuery()
             ->getResult();
     }
 
     /**
-     * ✅ Liste tous les produits PUBLICS (actifs uniquement), tri id DESC
-     * Utilisé typiquement par : GET /api/products
+     * Liste tous les produits publics (actifs uniquement), tri id DESC
      *
      * @return Product[]
      */
@@ -60,19 +65,20 @@ class ProductRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')->addSelect('c')
+            ->leftJoin('p.productCollection', 'pc')->addSelect('pc')
+            ->leftJoin('p.additionalCategories', 'ac')->addSelect('ac')
+            ->leftJoin('p.additionalCollections', 'apc')->addSelect('apc')
             ->andWhere('p.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('p.id', 'DESC')
+            ->distinct()
             ->getQuery()
             ->getResult();
     }
 
     /**
-     * ✅ Liste des produits PUBLICS (actifs) d'une catégorie (par slug), tri id DESC
-     * Utilisé typiquement par : GET /api/categories/{slug}/products
-     *
-     * Exemple :
-     *  - slug catégorie = "bijoux"
+     * Liste des produits publics d'une catégorie,
+     * via catégorie principale OU catégorie secondaire.
      *
      * @return Product[]
      */
@@ -80,16 +86,21 @@ class ProductRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')->addSelect('c')
-            ->andWhere('c.slug = :slug')
-            ->setParameter('slug', $categorySlug)
+            ->leftJoin('p.additionalCategories', 'ac')->addSelect('ac')
+            ->leftJoin('p.productCollection', 'pc')->addSelect('pc')
             ->andWhere('p.isActive = :active')
             ->setParameter('active', true)
+            ->andWhere('(c.slug = :slug OR ac.slug = :slug)')
+            ->setParameter('slug', $categorySlug)
             ->orderBy('p.id', 'DESC')
+            ->distinct()
             ->getQuery()
             ->getResult();
     }
+
     /**
-     * ✅ Produits actifs paginés, filtre optionnel par catégorie (slug)
+     * Produits actifs paginés, filtre optionnel par catégorie.
+     * Cherche dans catégorie principale OU secondaire.
      *
      * @return array{items: Product[], total:int, page:int, limit:int, pages:int}
      */
@@ -101,22 +112,23 @@ class ProductRepository extends ServiceEntityRepository
 
         $qb = $this->createQueryBuilder('p')
             ->leftJoin('p.category', 'c')->addSelect('c')
+            ->leftJoin('p.additionalCategories', 'ac')
+            ->leftJoin('p.productCollection', 'pc')->addSelect('pc')
             ->andWhere('p.isActive = :active')
-            ->setParameter('active', true);
+            ->setParameter('active', true)
+            ->distinct();
 
         if ($categorySlug) {
-            $qb->andWhere('c.slug = :cslug')
+            $qb->andWhere('(c.slug = :cslug OR ac.slug = :cslug)')
                 ->setParameter('cslug', $categorySlug);
         }
 
-        // Total count
         $countQb = clone $qb;
         $total = (int) $countQb
-            ->select('COUNT(p.id)')
+            ->select('COUNT(DISTINCT p.id)')
             ->getQuery()
             ->getSingleScalarResult();
 
-        // Items
         $items = $qb
             ->orderBy('p.id', 'DESC')
             ->setFirstResult($offset)
@@ -134,18 +146,28 @@ class ProductRepository extends ServiceEntityRepository
             'pages' => $pages,
         ];
     }
+
+    /**
+     * Produits actifs pour la boutique,
+     * filtre optionnel par catégorie principale OU secondaire.
+     *
+     * @return Product[]
+     */
     public function findAllActiveForShop(?string $categorySlug = null): array
     {
         $qb = $this->createQueryBuilder('p')
-            ->leftJoin('p.category', 'c')
-            ->addSelect('c')
+            ->leftJoin('p.category', 'c')->addSelect('c')
+            ->leftJoin('p.additionalCategories', 'ac')
+            ->leftJoin('p.productCollection', 'pc')->addSelect('pc')
+            ->leftJoin('p.additionalCollections', 'apc')->addSelect('apc')
             ->andWhere('p.isActive = :active')
             ->setParameter('active', true)
-            ->orderBy('p.id', 'DESC');
+            ->orderBy('p.id', 'DESC')
+            ->distinct();
 
         if ($categorySlug) {
             $qb
-                ->andWhere('c.slug = :category')
+                ->andWhere('(c.slug = :category OR ac.slug = :category)')
                 ->setParameter('category', $categorySlug);
         }
 

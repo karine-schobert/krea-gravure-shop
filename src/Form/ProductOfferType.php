@@ -17,97 +17,132 @@ class ProductOfferType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            // Titre commercial de l'offre
+            // =========================================================
+            // INFORMATIONS COMMERCIALES PRINCIPALES
+            // =========================================================
+
             ->add('title', TextType::class, [
                 'label' => 'Titre de l’offre',
                 'required' => true,
+                'empty_data' => '',
+                'attr' => [
+                    'placeholder' => 'Ex. À l’unité, Lot de 4, Offre Noël',
+                ],
+                'help' => 'Nom visible dans l’administration et sur la fiche produit.',
             ])
 
-            // Type de vente
             ->add('saleType', ChoiceType::class, [
                 'label' => 'Type d’offre',
-                'choices' => [
-                    'À l’unité' => 'unit',
-                    'Lot' => 'bundle',
-                    'Saisonnier' => 'seasonal',
-                    'Offre spéciale' => 'special',
-                    'Collection complète' => 'full_collection',
-                ],
-                'placeholder' => 'Choisir un type',
+                'choices' => ProductOffer::getSaleTypeChoices(),
+                'placeholder' => false,
                 'required' => true,
+                'data' => ProductOffer::SALE_TYPE_UNIT,
+                'help' => 'Définit la logique commerciale de cette offre.',
             ])
 
-            // Quantité incluse dans l'offre
             ->add('quantity', IntegerType::class, [
-                'label' => 'Quantité',
+                'label' => 'Quantité incluse',
                 'required' => true,
                 'empty_data' => '1',
+                'attr' => [
+                    'min' => 1,
+                    'placeholder' => '1',
+                ],
+                'help' => 'Nombre de pièces vendues dans cette offre.',
             ])
 
-            // Prix de l'offre en centimes
             ->add('priceCents', IntegerType::class, [
                 'label' => 'Prix (en centimes)',
                 'required' => true,
+                'empty_data' => '0',
+                'attr' => [
+                    'min' => 0,
+                    'placeholder' => '990',
+                ],
                 'help' => 'Exemple : 990 = 9,90 €',
             ])
 
-            // Offre personnalisable ou non
+            ->add('isActive', CheckboxType::class, [
+                'label' => 'Offre active',
+                'required' => false,
+                'data' => true,
+                'help' => 'Une offre inactive reste enregistrée mais n’est pas proposée au client.',
+            ])
+
+            ->add('position', IntegerType::class, [
+                'label' => 'Position d’affichage',
+                'required' => false,
+                'empty_data' => '0',
+                'attr' => [
+                    'min' => 0,
+                    'placeholder' => '0',
+                ],
+                'help' => 'Permet de trier les offres sur la fiche produit.',
+            ])
+
+            // =========================================================
+            // PERSONNALISATION
+            // =========================================================
+
             ->add('isCustomizable', CheckboxType::class, [
-                'label' => 'Personnalisable',
+                'label' => 'Cette offre est personnalisable',
                 'required' => false,
+                'help' => 'Coche cette case si le client doit ou peut saisir un texte.',
             ])
 
-            // Libellé du champ affiché au client
             ->add('customizationLabel', TextType::class, [
-                'label' => 'Libellé personnalisation',
+                'label' => 'Libellé du champ de personnalisation',
                 'required' => false,
-                'help' => 'Exemple : Prénom, Texte à graver, Mot à inscrire',
+                'empty_data' => '',
+                'attr' => [
+                    'placeholder' => 'Ex. Prénom, Texte à graver, Mot à inscrire',
+                ],
+                'help' => 'Texte affiché au client au-dessus du champ.',
             ])
 
-            // Placeholder du champ affiché au client
             ->add('customizationPlaceholder', TextType::class, [
-                'label' => 'Placeholder personnalisation',
+                'label' => 'Placeholder du champ',
                 'required' => false,
-                'help' => 'Exemple : Ex. Charlotte',
+                'empty_data' => '',
+                'attr' => [
+                    'placeholder' => 'Ex. Charlotte',
+                ],
+                'help' => 'Texte d’exemple visible dans le champ de saisie.',
             ])
 
-            // Longueur max autorisée
             ->add('customizationMaxLength', IntegerType::class, [
-                'label' => 'Longueur max',
+                'label' => 'Nombre maximum de caractères',
                 'required' => false,
-                'help' => 'Exemple : 10, 12, 20',
+                'empty_data' => '',
+                'attr' => [
+                    'min' => 1,
+                    'placeholder' => '12',
+                ],
+                'help' => 'Limite facultative du texte saisi par le client.',
             ])
 
-            // Personnalisation obligatoire ou non
             ->add('isCustomizationRequired', CheckboxType::class, [
                 'label' => 'Personnalisation obligatoire',
                 'required' => false,
+                'help' => 'À cocher seulement si le client doit obligatoirement remplir le champ.',
             ])
 
-            // Offre active ou non
-            ->add('isActive', CheckboxType::class, [
-                'label' => 'Active',
-                'required' => false,
-            ])
+            // =========================================================
+            // VALIDITÉ / TEMPORALITÉ
+            // =========================================================
 
-            // Ordre d'affichage
-            ->add('position', IntegerType::class, [
-                'label' => 'Position',
-                'required' => false,
-            ])
-
-            // Début de validité éventuel
             ->add('startsAt', DateTimeType::class, [
-                'label' => 'Début',
+                'label' => 'Début de validité',
                 'required' => false,
                 'widget' => 'single_text',
+                'help' => 'Laisse vide si l’offre est disponible immédiatement.',
             ])
 
-            // Fin de validité éventuelle
             ->add('endsAt', DateTimeType::class, [
-                'label' => 'Fin',
+                'label' => 'Fin de validité',
                 'required' => false,
                 'widget' => 'single_text',
+                'help' => 'Laisse vide si l’offre n’a pas de date de fin.',
             ]);
     }
 
