@@ -36,72 +36,75 @@ class DashboardController extends AbstractDashboardController
     }
 
     public function configureMenuItems(): iterable
-{
-    yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
+    {
+        yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
 
-    /** @var AdminUrlGenerator $adminUrlGenerator */
-    $adminUrlGenerator = $this->container->get(AdminUrlGenerator::class);
+        /** @var AdminUrlGenerator $adminUrlGenerator */
+        $adminUrlGenerator = $this->container->get(AdminUrlGenerator::class);
 
-    $productUrl = $adminUrlGenerator
-        ->setController(ProductCrudController::class)
-        ->setAction(Action::INDEX)
-        ->generateUrl();
+        $productUrl = $adminUrlGenerator
+            ->setController(ProductCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $categoryUrl = $adminUrlGenerator
-        ->setController(CategoryCrudController::class)
-        ->setAction(Action::INDEX)
-        ->generateUrl();
+        $productOfferUrl = $adminUrlGenerator
+            ->setController(ProductOfferCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $adminUserUrl = $adminUrlGenerator
-        ->setController(AdminCrudController::class)
-        ->setAction(Action::INDEX)
-        ->generateUrl();
+        $categoryUrl = $adminUrlGenerator
+            ->setController(CategoryCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $customerUrl = $adminUrlGenerator
-        ->setController(CustomerCrudController::class)
-        ->setAction(Action::INDEX)
-        ->generateUrl();
+        $productCollectionUrl = $adminUrlGenerator
+            ->setController(ProductCollectionCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $orderUrl = $adminUrlGenerator
-        ->setController(OrderCrudController::class)
-        ->setAction(Action::INDEX)
-        ->generateUrl();
+        $seasonUrl = $adminUrlGenerator
+            ->setController(SeasonCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $homepageUrl = $adminUrlGenerator
-        ->setController(HomepageCrudController::class)
-        ->setAction(Action::INDEX)
-        ->generateUrl();
+        $shopPageSettingsUrl = $adminUrlGenerator
+            ->setController(ShopPageSettingsCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $seasonUrl = $adminUrlGenerator
-        ->setController(SeasonCrudController::class)
-        ->setAction(Action::INDEX)
-        ->generateUrl();
+        $orderUrl = $adminUrlGenerator
+            ->setController(OrderCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $shopPageSettingsUrl = $adminUrlGenerator
-    ->setController(ShopPageSettingsCrudController::class)
-    ->setAction(Action::INDEX)
-    ->generateUrl();
+        $customerUrl = $adminUrlGenerator
+            ->setController(CustomerCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    $productCollectionUrl = $adminUrlGenerator
-    ->setController(ProductCollectionCrudController::class)
-    ->setAction(Action::INDEX)
-    ->generateUrl();
+        $adminUserUrl = $adminUrlGenerator
+            ->setController(AdminCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
+        $homepageUrl = $adminUrlGenerator
+            ->setController(HomepageCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
-    yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
-    yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
-    yield MenuItem::linkToUrl('Collections', 'fa fa-layer-group', $productCollectionUrl);
-    yield MenuItem::linkToUrl('Saisons', 'fa fa-calendar', $seasonUrl);
-    yield MenuItem::linkToUrl('Page boutique', 'fa fa-store', $shopPageSettingsUrl);
+        yield MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl);
+        yield MenuItem::linkToUrl('Offres produit', 'fa fa-percent', $productOfferUrl);
+        yield MenuItem::linkToUrl('Catégories', 'fa fa-tags', $categoryUrl);
+        yield MenuItem::linkToUrl('Collections', 'fa fa-layer-group', $productCollectionUrl);
+        yield MenuItem::linkToUrl('Saisons', 'fa fa-calendar', $seasonUrl);
+        yield MenuItem::linkToUrl('Page boutique', 'fa fa-store', $shopPageSettingsUrl);
 
-    yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
-    yield MenuItem::linkToUrl('Clients', 'fa fa-users', $customerUrl);
+        yield MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl);
+        yield MenuItem::linkToUrl('Clients', 'fa fa-users', $customerUrl);
 
-    yield MenuItem::linkToUrl('Administrateurs', 'fa fa-user-shield', $adminUserUrl);
-    yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
-
-}
-
+        yield MenuItem::linkToUrl('Administrateurs', 'fa fa-user-shield', $adminUserUrl);
+        yield MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl);
+    }
     public function configureAssets(): Assets
     {
         return Assets::new()

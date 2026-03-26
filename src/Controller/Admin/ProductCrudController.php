@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Product;
+use App\Form\ProductOfferType;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -11,6 +12,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -26,7 +28,9 @@ use Symfony\Component\String\Slugger\SluggerInterface;
 
 class ProductCrudController extends AbstractCrudController
 {
-    public function __construct(private readonly SluggerInterface $slugger) {}
+    public function __construct(
+        private readonly SluggerInterface $slugger
+    ) {}
 
     public static function getEntityFqcn(): string
     {
@@ -34,7 +38,7 @@ class ProductCrudController extends AbstractCrudController
     }
 
     /**
-     * Configuration générale du CRUD
+     * Configuration générale du CRUD.
      */
     public function configureCrud(Crud $crud): Crud
     {
@@ -47,17 +51,24 @@ class ProductCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, 'Détail du produit')
             ->setDefaultSort(['id' => 'DESC'])
             ->showEntityActionsInlined()
-            ->setSearchFields(['id','title','slug','description']);
+            ->setSearchFields([
+                'id',
+                'title',
+                'slug',
+                'description',
+            ]);
     }
 
     /**
-     * Actions et boutons personnalisés
+     * Boutons et actions personnalisées.
      */
     public function configureActions(Actions $actions): Actions
     {
         return $actions
+            // Bouton détail sur la liste
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
 
+            // Personnalisation des libellés / icônes sur l'index
             ->update(Crud::PAGE_INDEX, Action::DETAIL, fn(Action $action) => $action
                 ->setLabel('Voir')
                 ->setIcon('fa fa-eye')
@@ -78,6 +89,7 @@ class ProductCrudController extends AbstractCrudController
                 ->setIcon('fa fa-plus')
                 ->addCssClass('crud-action-new'))
 
+            // Personnalisation sur la page détail
             ->update(Crud::PAGE_DETAIL, Action::EDIT, fn(Action $action) => $action
                 ->setLabel('Modifier')
                 ->setIcon('fa fa-pen')
@@ -93,18 +105,21 @@ class ProductCrudController extends AbstractCrudController
                 ->setIcon('fa fa-arrow-left')
                 ->addCssClass('crud-action-back'))
 
+            // Bouton retour sur édition
             ->add(Crud::PAGE_EDIT, Action::INDEX)
             ->update(Crud::PAGE_EDIT, Action::INDEX, fn(Action $action) => $action
                 ->setLabel('Retour à la liste')
                 ->setIcon('fa fa-arrow-left')
                 ->addCssClass('crud-action-back'))
 
+            // Bouton retour sur création
             ->add(Crud::PAGE_NEW, Action::INDEX)
             ->update(Crud::PAGE_NEW, Action::INDEX, fn(Action $action) => $action
                 ->setLabel('Retour à la liste')
                 ->setIcon('fa fa-arrow-left')
                 ->addCssClass('crud-action-back'))
 
+            // Libellés des boutons d'enregistrement
             ->update(Crud::PAGE_EDIT, Action::SAVE_AND_RETURN, fn(Action $action) => $action
                 ->setLabel('Enregistrer les modifications'))
 
@@ -113,7 +128,7 @@ class ProductCrudController extends AbstractCrudController
     }
 
     /**
-     * Filtres utiles sur le listing
+     * Filtres du listing admin.
      */
     public function configureFilters(Filters $filters): Filters
     {
@@ -123,17 +138,17 @@ class ProductCrudController extends AbstractCrudController
             ->add(EntityFilter::new('category', 'Catégorie'))
             ->add(EntityFilter::new('productCollection', 'Collection'))
             ->add(EntityFilter::new('seasons', 'Saisons'))
-            ->add(NumericFilter::new('priceCents', 'Prix (centimes)'))
+            ->add(NumericFilter::new('priceCents', 'Prix catalogue (centimes)'))
             ->add(BooleanFilter::new('isActive', 'Actif'));
     }
 
     /**
-     * Champs affichés selon la page
+     * Champs affichés selon la page.
      */
     public function configureFields(string $pageName): iterable
     {
         // =========================
-        // Champs communs
+        // Champs techniques / communs
         // =========================
 
         $id = IdField::new('id', 'ID')->hideOnForm();
@@ -167,7 +182,7 @@ class ProductCrudController extends AbstractCrudController
                 ));
             });
 
-        // Champ relation saisons sur formulaire
+        // Champ de formulaire pour associer des saisons
         $seasonsForm = AssociationField::new('seasons', 'Saisons')
             ->setHelp('Associe ce produit à une ou plusieurs saisons.')
             ->setFormTypeOption('by_reference', false);
@@ -176,10 +191,12 @@ class ProductCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setHelp('Description visible sur la fiche produit.');
 
-        $price = MoneyField::new('priceCents', 'Prix')
+        // Prix catalogue / historique
+        // On le garde pour le moment, même si la vraie vente passe par ProductOffer.
+        $price = MoneyField::new('priceCents', 'Prix catalogue')
             ->setCurrency('EUR')
             ->setStoredAsCents(true)
-            ->setHelp('Prix enregistré en centimes dans la base.');
+            ->setHelp('Champ conservé pour le catalogue. Les vrais prix vendables sont gérés dans les offres.');
 
         $isActive = BooleanField::new('isActive', 'Actif');
 
@@ -189,6 +206,16 @@ class ProductCrudController extends AbstractCrudController
             ->setUploadedFileNamePattern('[timestamp]-[randomhash].[extension]')
             ->setRequired(false)
             ->setHelp('Tu peux envoyer une nouvelle image si besoin.');
+
+        // Gestion des offres directement dans la fiche produit
+        $offers = CollectionField::new('offers', 'Offres commerciales')
+            ->setEntryType(ProductOfferType::class)
+            ->setFormTypeOption('by_reference', false)
+            ->allowAdd()
+            ->allowDelete()
+            ->renderExpanded()
+            ->setHelp('Ajoute ici les offres liées à ce produit : unité, lot, offre spéciale, saisonnière, etc.')
+            ->addCssClass('product-offers-collection');
 
         $createdAt = DateTimeField::new('createdAt', 'Créé le')
             ->setFormat('dd/MM/yyyy HH:mm')
@@ -253,6 +280,10 @@ class ProductCrudController extends AbstractCrudController
             $price,
             $isActive,
 
+            FormField::addFieldset('Offres commerciales'),
+
+            $offers,
+
             FormField::addFieldset('Image'),
 
             $image,
@@ -266,7 +297,7 @@ class ProductCrudController extends AbstractCrudController
     }
 
     /**
-     * Création
+     * Persistance à la création.
      */
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
@@ -275,14 +306,17 @@ class ProductCrudController extends AbstractCrudController
             return;
         }
 
+        // Sécurise createdAt si besoin
         if (null === $entityInstance->getCreatedAt()) {
             $entityInstance->setCreatedAt(new \DateTimeImmutable());
         }
 
+        // Sécurise le statut actif
         if (null === $entityInstance->isActive()) {
             $entityInstance->setIsActive(true);
         }
 
+        // Génère le slug automatiquement si vide
         if (!$entityInstance->getSlug() && $entityInstance->getTitle()) {
             $slug = $this->slugger->slug($entityInstance->getTitle())->lower();
             $entityInstance->setSlug($slug);
@@ -292,7 +326,7 @@ class ProductCrudController extends AbstractCrudController
     }
 
     /**
-     * Édition
+     * Persistance à la modification.
      */
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
@@ -301,6 +335,7 @@ class ProductCrudController extends AbstractCrudController
             return;
         }
 
+        // Génère le slug automatiquement si vide
         if (!$entityInstance->getSlug() && $entityInstance->getTitle()) {
             $slug = $this->slugger->slug($entityInstance->getTitle())->lower();
             $entityInstance->setSlug($slug);

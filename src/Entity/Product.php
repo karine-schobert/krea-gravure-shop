@@ -23,7 +23,6 @@ class Product
     // =========================
     // INFOS PRODUIT
     // =========================
-
     #[ORM\Column(length: 255)]
     private string $title = '';
 
@@ -43,19 +42,37 @@ class Product
     // RELATIONS
     // =========================
 
-    // Catégorie
+    /**
+     * Catégorie principale du produit.
+     */
     #[ORM\ManyToOne(inversedBy: 'products')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Category $category = null;
 
-    // Seasons (Noël, Pâques, etc.)
+    /**
+     * Saisons liées au produit.
+     * Exemples : Noël, Pâques, Saint-Valentin...
+     */
     #[ORM\ManyToMany(targetEntity: Season::class, inversedBy: 'products')]
     private Collection $seasons;
 
-    // Collection 
+    /**
+     * Collection visuelle / univers auquel appartient le produit.
+     */
     #[ORM\ManyToOne(inversedBy: 'products')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?ProductCollection $productCollection = null;
+
+    /**
+     * Liste des offres commerciales liées à ce produit.
+     * Exemple :
+     * - À l’unité
+     * - Lot de 4
+     * - Offre saisonnière
+     */
+ 
+    #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductOffer::class, cascade: ['persist'], orphanRemoval: true)]
+    private Collection $offers;
 
     // =========================
     // IMAGE
@@ -78,6 +95,7 @@ class Product
     public function __construct()
     {
         $this->seasons = new ArrayCollection();
+        $this->offers = new ArrayCollection();
 
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
@@ -104,7 +122,6 @@ class Product
     // =========================
     // GETTERS / SETTERS
     // =========================
-
     public function getId(): ?int
     {
         return $this->id;
@@ -118,6 +135,7 @@ class Product
     public function setTitle(string $title): static
     {
         $this->title = trim($title);
+
         return $this;
     }
 
@@ -129,6 +147,7 @@ class Product
     public function setSlug(?string $slug): static
     {
         $this->slug = $slug !== null ? trim($slug) : null;
+
         return $this;
     }
 
@@ -140,6 +159,7 @@ class Product
     public function setDescription(?string $description): static
     {
         $this->description = $description;
+
         return $this;
     }
 
@@ -151,6 +171,7 @@ class Product
     public function setPriceCents(int $priceCents): static
     {
         $this->priceCents = max(0, $priceCents);
+
         return $this;
     }
 
@@ -162,6 +183,7 @@ class Product
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
+
         return $this;
     }
 
@@ -176,6 +198,7 @@ class Product
     public function setCategory(?Category $category): static
     {
         $this->category = $category;
+
         return $this;
     }
 
@@ -196,19 +219,21 @@ class Product
         if (!$this->seasons->contains($season)) {
             $this->seasons->add($season);
         }
+
         return $this;
     }
 
     public function removeSeason(Season $season): static
     {
         $this->seasons->removeElement($season);
+
         return $this;
     }
-    // =========================
-    // COLLECTIN DE PRODUIT
-    // =========================
 
-        public function getProductCollection(): ?ProductCollection
+    // =========================
+    // PRODUCT COLLECTION
+    // =========================
+    public function getProductCollection(): ?ProductCollection
     {
         return $this->productCollection;
     }
@@ -216,6 +241,47 @@ class Product
     public function setProductCollection(?ProductCollection $productCollection): static
     {
         $this->productCollection = $productCollection;
+
+        return $this;
+    }
+
+    // =========================
+    // PRODUCT OFFERS
+    // =========================
+
+    /**
+     * Retourne toutes les offres commerciales de ce produit.
+     *
+     * @return Collection<int, ProductOffer>
+     */
+    public function getOffers(): Collection
+    {
+        return $this->offers;
+    }
+
+    /**
+     * Ajoute une offre commerciale au produit.
+     */
+    public function addOffer(ProductOffer $offer): static
+    {
+        if (!$this->offers->contains($offer)) {
+            $this->offers->add($offer);
+            $offer->setProduct($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Supprime une offre commerciale du produit.
+     */
+    public function removeOffer(ProductOffer $offer): static
+    {
+        if ($this->offers->removeElement($offer)) {
+            if ($offer->getProduct() === $this) {
+                $offer->setProduct(null);
+            }
+        }
 
         return $this;
     }
@@ -232,6 +298,7 @@ class Product
     {
         $image = $image !== null ? trim($image) : null;
         $this->image = $image === '' ? null : $image;
+
         return $this;
     }
 
@@ -251,6 +318,7 @@ class Product
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
+
         return $this;
     }
 
@@ -262,6 +330,7 @@ class Product
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
         return $this;
     }
 
@@ -270,6 +339,6 @@ class Product
     // =========================
     public function __toString(): string
     {
-        return $this->getTitle() ?: 'Produit';
+        return $this->title ?: 'Produit';
     }
 }
