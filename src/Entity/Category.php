@@ -25,9 +25,8 @@ class Category
     private ?string $slug = null;
 
     /**
-     * IMPORTANT : comme Product.category est NOT NULL,
      * on ne met pas orphanRemoval=true ici, sinon Doctrine pourrait supprimer des produits
-     * si tu les "retires" de la catégorie.
+     * 
      */
     #[ORM\OneToMany(mappedBy: 'category', targetEntity: Product::class)]
     private Collection $products;

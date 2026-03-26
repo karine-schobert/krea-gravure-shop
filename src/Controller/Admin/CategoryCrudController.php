@@ -108,8 +108,9 @@ class CategoryCrudController extends AbstractCrudController
         $name = TextField::new('name', 'Nom')
             ->setHelp('Ex: Noël, Halloween, Fête des mères');
 
-        $slug = TextField::new('slug', 'Slug')
-            ->setHelp('Laisse vide pour auto-générer depuis le nom.');
+       $slug = TextField::new('slug', 'Slug')
+        ->setFormTypeOption('disabled', true)
+        ->setHelp('Slug généré automatiquement depuis le titre ou le nom.');
 
         $image = ImageField::new('image', 'Image')
             ->setBasePath('/uploads/categories')
@@ -160,16 +161,12 @@ class CategoryCrudController extends AbstractCrudController
         // =========================
         return [
             FormField::addFieldset('Informations principales'),
-
             $name,
-            $slug,
 
             FormField::addFieldset('Image'),
-
             $image,
 
             FormField::addFieldset('Informations techniques'),
-
             $createdAt,
         ];
     }
@@ -177,6 +174,11 @@ class CategoryCrudController extends AbstractCrudController
     // =========================
     // CREATE
     // =========================
+    private function generateSlugFromName(string $name): string
+    {
+        return $this->slugger->slug($name)->lower()->toString();
+    }
+
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Category) {
@@ -184,15 +186,12 @@ class CategoryCrudController extends AbstractCrudController
             return;
         }
 
-        // createdAt auto
         if (null === $entityInstance->getCreatedAt()) {
             $entityInstance->setCreatedAt(new \DateTimeImmutable());
         }
 
-        // slug auto si vide
-        if (!$entityInstance->getSlug() && $entityInstance->getName()) {
-            $slug = $this->slugger->slug($entityInstance->getName())->lower();
-            $entityInstance->setSlug($slug);
+        if ($entityInstance->getName()) {
+            $entityInstance->setSlug($this->generateSlugFromName($entityInstance->getName()));
         }
 
         parent::persistEntity($entityManager, $entityInstance);
@@ -208,10 +207,8 @@ class CategoryCrudController extends AbstractCrudController
             return;
         }
 
-        // slug auto si vide
-        if (!$entityInstance->getSlug() && $entityInstance->getName()) {
-            $slug = $this->slugger->slug($entityInstance->getName())->lower();
-            $entityInstance->setSlug($slug);
+        if ($entityInstance->getName()) {
+            $entityInstance->setSlug($this->generateSlugFromName($entityInstance->getName()));
         }
 
         parent::updateEntity($entityManager, $entityInstance);

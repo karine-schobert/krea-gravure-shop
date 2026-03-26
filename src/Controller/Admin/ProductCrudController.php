@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Product;
+use App\Entity\ProductOffer;
 use App\Form\ProductOfferType;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -32,6 +33,9 @@ class ProductCrudController extends AbstractCrudController
         private readonly SluggerInterface $slugger
     ) {}
 
+    /**
+     * Entité gérée par ce CRUD.
+     */
     public static function getEntityFqcn(): string
     {
         return Product::class;
@@ -60,15 +64,15 @@ class ProductCrudController extends AbstractCrudController
     }
 
     /**
-     * Boutons et actions personnalisées.
+     * Configuration des actions EasyAdmin.
      */
     public function configureActions(Actions $actions): Actions
     {
         return $actions
-            // Bouton détail sur la liste
+            // Ajout du bouton détail dans la liste
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
 
-            // Personnalisation des libellés / icônes sur l'index
+            // Personnalisation des boutons sur la liste
             ->update(Crud::PAGE_INDEX, Action::DETAIL, fn(Action $action) => $action
                 ->setLabel('Voir')
                 ->setIcon('fa fa-eye')
@@ -89,7 +93,7 @@ class ProductCrudController extends AbstractCrudController
                 ->setIcon('fa fa-plus')
                 ->addCssClass('crud-action-new'))
 
-            // Personnalisation sur la page détail
+            // Personnalisation des boutons sur la page détail
             ->update(Crud::PAGE_DETAIL, Action::EDIT, fn(Action $action) => $action
                 ->setLabel('Modifier')
                 ->setIcon('fa fa-pen')
@@ -119,55 +123,153 @@ class ProductCrudController extends AbstractCrudController
                 ->setIcon('fa fa-arrow-left')
                 ->addCssClass('crud-action-back'))
 
-            // Libellés des boutons d'enregistrement
+            // Libellés des boutons de sauvegarde
             ->update(Crud::PAGE_EDIT, Action::SAVE_AND_RETURN, fn(Action $action) => $action
                 ->setLabel('Enregistrer les modifications'))
 
             ->update(Crud::PAGE_EDIT, Action::SAVE_AND_CONTINUE, fn(Action $action) => $action
-                ->setLabel('Enregistrer et continuer'));
+                ->setLabel('Enregistrer et continuer'))
+
+            ->update(Crud::PAGE_NEW, Action::SAVE_AND_RETURN, fn(Action $action) => $action
+                ->setLabel('Créer le produit'));
     }
 
     /**
-     * Filtres du listing admin.
+     * Filtres disponibles dans le listing admin.
      */
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
             ->add(TextFilter::new('title', 'Titre'))
             ->add(TextFilter::new('slug', 'Slug'))
-            ->add(EntityFilter::new('category', 'Catégorie'))
-            ->add(EntityFilter::new('productCollection', 'Collection'))
+            ->add(EntityFilter::new('category', 'Catégorie principale'))
+            ->add(EntityFilter::new('productCollection', 'Collection principale'))
             ->add(EntityFilter::new('seasons', 'Saisons'))
             ->add(NumericFilter::new('priceCents', 'Prix catalogue (centimes)'))
             ->add(BooleanFilter::new('isActive', 'Actif'));
     }
 
     /**
-     * Champs affichés selon la page.
+     * Champs affichés selon la page EasyAdmin.
+     *
+     * Objectifs :
+     * - conserver ton architecture actuelle
+     * - ne rien casser côté base / API / front
+     * - alléger l'expérience admin
+     * - préparer l'automatisation du Bloc 2
      */
     public function configureFields(string $pageName): iterable
     {
-        // =========================
-        // Champs techniques / communs
-        // =========================
+        // =========================================================
+        // CHAMPS TECHNIQUES / DE BASE
+        // =========================================================
 
-        $id = IdField::new('id', 'ID')->hideOnForm();
+        $id = IdField::new('id', 'ID')
+            ->hideOnForm();
 
         $title = TextField::new('title', 'Titre')
-            ->setHelp('Nom affiché sur la boutique.');
+            ->setHelp('Nom principal affiché sur la boutique.');
 
         $slug = TextField::new('slug', 'Slug')
-            ->setHelp('Laisse vide pour le générer automatiquement depuis le titre.');
+            ->setFormTypeOption('disabled', true)
+            ->setHelp('Slug généré automatiquement à partir du titre.');
 
-        $category = AssociationField::new('category', 'Catégorie')
-            ->setHelp('Choisis la catégorie principale du produit.');
+        $description = TextareaField::new('description', 'Description')
+            ->hideOnIndex()
+            ->setHelp('Description affichée sur la fiche produit.');
 
-        $productCollection = AssociationField::new('productCollection', 'Collection')
+        $price = MoneyField::new('priceCents', 'Prix catalogue')
+            ->setCurrency('EUR')
+            ->setStoredAsCents(true)
+            ->setHelp('Prix catalogue interne. Les vrais prix de vente sont gérés dans les offres.');
+
+        $isActive = BooleanField::new('isActive', 'Actif')
+            ->renderAsSwitch(false)
+            ->setHelp('Produit visible et exploitable dans ton catalogue.');
+
+        $image = ImageField::new('image', 'Image')
+            ->setBasePath('/uploads/products')
+            ->setUploadDir('public/uploads/products')
+            ->setUploadedFileNamePattern('[timestamp]-[randomhash].[extension]')
+            ->setRequired(false)
+            ->setHelp('Image principale du produit.');
+
+        $createdAt = DateTimeField::new('createdAt', 'Créé le')
+            ->setFormat('dd/MM/yyyy HH:mm')
+            ->hideOnForm();
+
+        $updatedAt = DateTimeField::new('updatedAt', 'Modifié le')
+            ->setFormat('dd/MM/yyyy HH:mm')
+            ->hideOnForm();
+
+        // =========================================================
+        // ORGANISATION PRINCIPALE
+        // =========================================================
+
+        $category = AssociationField::new('category', 'Catégorie principale')
             ->setRequired(false)
             ->autocomplete()
-            ->setHelp('Associe ce produit à une collection si besoin.');
+            ->setHelp('Catégorie principale utilisée pour classer le produit.');
 
-        // Affichage texte des saisons sur index / détail
+        $productCollection = AssociationField::new('productCollection', 'Collection principale')
+            ->setRequired(false)
+            ->autocomplete()
+            ->setHelp('Collection principale si le produit appartient à une série.');
+
+        // =========================================================
+        // ORGANISATION AVANCÉE - FORMULAIRE
+        // =========================================================
+
+        $additionalCategoriesForm = AssociationField::new('additionalCategories', 'Catégories secondaires')
+            ->setRequired(false)
+            ->autocomplete()
+            ->setFormTypeOption('by_reference', false)
+            ->setHelp('Option avancée : ajoute ici des catégories secondaires.');
+
+        $additionalCollectionsForm = AssociationField::new('additionalCollections', 'Collections secondaires')
+            ->setRequired(false)
+            ->autocomplete()
+            ->setFormTypeOption('by_reference', false)
+            ->setHelp('Option avancée : ajoute ici des collections secondaires.');
+
+        $seasonsForm = AssociationField::new('seasons', 'Saisons')
+            ->setRequired(false)
+            ->autocomplete()
+            ->setFormTypeOption('by_reference', false)
+            ->setHelp('Option avancée : associe ce produit à une ou plusieurs saisons.');
+
+        // =========================================================
+        // ORGANISATION AVANCÉE - AFFICHAGE DETAIL
+        // =========================================================
+
+        $additionalCategoriesDisplay = AssociationField::new('additionalCategories', 'Catégories secondaires')
+            ->formatValue(function ($value, $entity) {
+                $categories = $entity->getAdditionalCategories()->toArray();
+
+                if (empty($categories)) {
+                    return '—';
+                }
+
+                return implode(', ', array_map(
+                    fn($category) => $category->getName(),
+                    $categories
+                ));
+            });
+
+        $additionalCollectionsDisplay = AssociationField::new('additionalCollections', 'Collections secondaires')
+            ->formatValue(function ($value, $entity) {
+                $collections = $entity->getAdditionalCollections()->toArray();
+
+                if (empty($collections)) {
+                    return '—';
+                }
+
+                return implode(', ', array_map(
+                    fn($collection) => $collection->getName(),
+                    $collections
+                ));
+            });
+
         $seasonsDisplay = AssociationField::new('seasons', 'Saisons')
             ->formatValue(function ($value, $entity) {
                 $seasons = $entity->getSeasons()->toArray();
@@ -182,52 +284,27 @@ class ProductCrudController extends AbstractCrudController
                 ));
             });
 
-        // Champ de formulaire pour associer des saisons
-        $seasonsForm = AssociationField::new('seasons', 'Saisons')
-            ->setHelp('Associe ce produit à une ou plusieurs saisons.')
-            ->setFormTypeOption('by_reference', false);
+        // =========================================================
+        // OFFRES COMMERCIALES
+        // =========================================================
+        // La relation Doctrine du produit est "offers".
+        // Chaque Product possède plusieurs ProductOffer.
+        // =========================================================
 
-        $description = TextareaField::new('description', 'Description')
-            ->hideOnIndex()
-            ->setHelp('Description visible sur la fiche produit.');
-
-        // Prix catalogue / historique
-        // On le garde pour le moment, même si la vraie vente passe par ProductOffer.
-        $price = MoneyField::new('priceCents', 'Prix catalogue')
-            ->setCurrency('EUR')
-            ->setStoredAsCents(true)
-            ->setHelp('Champ conservé pour le catalogue. Les vrais prix vendables sont gérés dans les offres.');
-
-        $isActive = BooleanField::new('isActive', 'Actif');
-
-        $image = ImageField::new('image', 'Image')
-            ->setBasePath('/uploads/products')
-            ->setUploadDir('public/uploads/products')
-            ->setUploadedFileNamePattern('[timestamp]-[randomhash].[extension]')
-            ->setRequired(false)
-            ->setHelp('Tu peux envoyer une nouvelle image si besoin.');
-
-        // Gestion des offres directement dans la fiche produit
         $offers = CollectionField::new('offers', 'Offres commerciales')
             ->setEntryType(ProductOfferType::class)
             ->setFormTypeOption('by_reference', false)
             ->allowAdd()
             ->allowDelete()
-            ->renderExpanded()
-            ->setHelp('Ajoute ici les offres liées à ce produit : unité, lot, offre spéciale, saisonnière, etc.')
-            ->addCssClass('product-offers-collection');
+            ->renderExpanded(false)
+            ->setHelp('Ajoute ici les offres de vente : unité, lot, collection complète, offre spéciale, etc.')
+            ->addCssClass('product-offers-collection')
+            ->onlyOnForms();
 
-        $createdAt = DateTimeField::new('createdAt', 'Créé le')
-            ->setFormat('dd/MM/yyyy HH:mm')
-            ->hideOnForm();
-
-        $updatedAt = DateTimeField::new('updatedAt', 'Modifié le')
-            ->setFormat('dd/MM/yyyy HH:mm')
-            ->hideOnForm();
-
-        // =========================
+        // =========================================================
         // PAGE INDEX
-        // =========================
+        // =========================================================
+
         if (Crud::PAGE_INDEX === $pageName) {
             return [
                 $id,
@@ -235,69 +312,157 @@ class ProductCrudController extends AbstractCrudController
                 $title,
                 $category,
                 $productCollection,
-                $seasonsDisplay,
                 $price,
                 $isActive,
                 $createdAt,
             ];
         }
 
-        // =========================
+        // =========================================================
         // PAGE DETAIL
-        // =========================
+        // =========================================================
+
         if (Crud::PAGE_DETAIL === $pageName) {
             return [
+                FormField::addFieldset('Informations principales'),
                 $id,
                 $image,
                 $title,
                 $slug,
+                $description,
+
+                FormField::addFieldset('Organisation'),
                 $category,
                 $productCollection,
+                $additionalCategoriesDisplay,
+                $additionalCollectionsDisplay,
                 $seasonsDisplay,
-                $description,
+
+                FormField::addFieldset('Configuration'),
                 $price,
                 $isActive,
+
+                FormField::addFieldset('Informations techniques'),
                 $createdAt,
                 $updatedAt,
             ];
         }
 
-        // =========================
-        // PAGE NEW / EDIT
-        // =========================
+        // =========================================================
+        // PAGE NEW
+        // =========================================================
+        // Création allégée : l'objectif est d'aller vite.
+        // Si aucune offre n'est ajoutée manuellement,
+        // une offre "À l’unité" sera créée automatiquement à la sauvegarde.
+        // =========================================================
+
+        if (Crud::PAGE_NEW === $pageName) {
+            return [
+                FormField::addFieldset('Informations principales'),
+                $title,
+                $slug,
+                $description,
+
+                FormField::addFieldset('Organisation principale'),
+                $category,
+                $productCollection,
+
+                FormField::addFieldset('Configuration'),
+                $price,
+                $isActive,
+
+                FormField::addFieldset('Offres commerciales'),
+                $offers,
+
+                FormField::addFieldset('Image'),
+                $image,
+            ];
+        }
+
+        // =========================================================
+        // PAGE EDIT
+        // =========================================================
+        // Édition plus complète avec une partie avancée séparée.
+        // =========================================================
+
         return [
             FormField::addFieldset('Informations principales'),
-
             $title,
             $slug,
             $description,
 
-            FormField::addFieldset('Organisation'),
-
+            FormField::addFieldset('Organisation principale'),
             $category,
             $productCollection,
+
+            FormField::addFieldset('Organisation avancée'),
+            $additionalCategoriesForm,
+            $additionalCollectionsForm,
             $seasonsForm,
+
+            FormField::addFieldset('Configuration'),
             $price,
             $isActive,
 
             FormField::addFieldset('Offres commerciales'),
-
             $offers,
 
             FormField::addFieldset('Image'),
-
             $image,
 
-            FormField::addFieldset('Informations techniques')
-                ->hideWhenCreating(),
-
+            FormField::addFieldset('Informations techniques'),
             $createdAt,
             $updatedAt,
         ];
     }
 
     /**
+     * Génère un slug propre à partir du titre.
+     */
+    private function generateSlugFromTitle(string $title): string
+    {
+        return $this->slugger->slug($title)->lower()->toString();
+    }
+
+    /**
+     * Crée une offre par défaut "À l’unité" si le produit n'a encore aucune offre.
+     *
+     * Cette méthode sert de première automatisation du Bloc 2.
+     * Elle évite d'avoir un produit enregistré sans offre commerciale exploitable.
+     */
+    private function createDefaultOfferIfNeeded(Product $product, EntityManagerInterface $entityManager): void
+    {
+        // Si une offre existe déjà, on ne fait rien.
+        if (!$product->getOffers()->isEmpty()) {
+            return;
+        }
+
+        $defaultOffer = new ProductOffer();
+
+        $defaultOffer->setTitle('À l’unité');
+        $defaultOffer->setSaleType(ProductOffer::SALE_TYPE_UNIT);
+        $defaultOffer->setQuantity(1);
+        $defaultOffer->setPriceCents($product->getPriceCents() ?? 0);
+        $defaultOffer->setIsActive(true);
+
+        // Liaison avec le produit
+        $product->addOffer($defaultOffer);
+
+        $entityManager->persist($defaultOffer);
+    }
+
+
+    /**
      * Persistance à la création.
+     *
+     * Logique conservée :
+     * - createdAt auto si besoin
+     * - slug auto depuis le titre
+     *
+     * Automatisation ajoutée :
+     * - si aucune offre n'a été créée manuellement, création auto
+     *   d'une offre "À l’unité"
+     * - isActive passe à true par défaut si non défini
      */
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
@@ -306,27 +471,39 @@ class ProductCrudController extends AbstractCrudController
             return;
         }
 
-        // Sécurise createdAt si besoin
+        // Date de création automatique si absente
         if (null === $entityInstance->getCreatedAt()) {
             $entityInstance->setCreatedAt(new \DateTimeImmutable());
         }
 
-        // Sécurise le statut actif
-        if (null === $entityInstance->isActive()) {
-            $entityInstance->setIsActive(true);
+        // Activation par défaut pour éviter les oublis en création
+        //if (null === $entityInstance->isActive()) {
+        //   $entityInstance->setIsActive(true);
+        //}
+
+        // Génération automatique du slug depuis le titre
+        if ($entityInstance->getTitle()) {
+            $entityInstance->setSlug(
+                $this->generateSlugFromTitle($entityInstance->getTitle())
+            );
         }
 
-        // Génère le slug automatiquement si vide
-        if (!$entityInstance->getSlug() && $entityInstance->getTitle()) {
-            $slug = $this->slugger->slug($entityInstance->getTitle())->lower();
-            $entityInstance->setSlug($slug);
-        }
-
+        // Sauvegarde du produit d'abord
         parent::persistEntity($entityManager, $entityInstance);
+
+        // Puis création de l'offre par défaut si aucune offre n'existe
+        $this->createDefaultOfferIfNeeded($entityInstance, $entityManager);
+
+        // Flush final pour enregistrer l'offre auto si elle a été créée
+        $entityManager->flush();
     }
 
     /**
      * Persistance à la modification.
+     *
+     * Si le titre change, le slug est régénéré.
+     * On garde aussi le filet de sécurité :
+     * si un produit n'a plus aucune offre, on lui recrée une offre par défaut.
      */
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
@@ -335,12 +512,21 @@ class ProductCrudController extends AbstractCrudController
             return;
         }
 
-        // Génère le slug automatiquement si vide
-        if (!$entityInstance->getSlug() && $entityInstance->getTitle()) {
-            $slug = $this->slugger->slug($entityInstance->getTitle())->lower();
-            $entityInstance->setSlug($slug);
+        // Régénération du slug à partir du titre
+        if ($entityInstance->getTitle()) {
+            $entityInstance->setSlug(
+                $this->generateSlugFromTitle($entityInstance->getTitle())
+            );
         }
 
+        // Sauvegarde classique des modifications
         parent::updateEntity($entityManager, $entityInstance);
+
+        // Filet de sécurité : si toutes les offres ont été supprimées,
+        // on recrée une offre minimale.
+        $this->createDefaultOfferIfNeeded($entityInstance, $entityManager);
+
+        // Flush final si une offre a été créée automatiquement
+        $entityManager->flush();
     }
 }

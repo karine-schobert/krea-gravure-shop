@@ -50,7 +50,7 @@ class ProductCollectionCrudController extends AbstractCrudController
                 'id' => 'DESC',
             ])
             ->showEntityActionsInlined()
-            ->setSearchFields(['id', 'name', 'slug', 'description','shortDescription']);
+            ->setSearchFields(['id', 'name', 'slug', 'description', 'shortDescription']);
     }
 
     // =========================
@@ -112,11 +112,12 @@ class ProductCollectionCrudController extends AbstractCrudController
             ->setHelp('Ex : Chic Noir, Naturelle, Noël Tradition');
 
         $slug = TextField::new('slug', 'Slug')
-            ->setHelp('Laisse vide pour auto-générer depuis le nom.');
+            ->setFormTypeOption('disabled', true)
+            ->setHelp('Slug généré automatiquement depuis le titre ou le nom.');
 
         $description = TextareaField::new('description', 'Description')
             ->setRequired(false)
-              ->setHelp('Description complète de la collection.');
+            ->setHelp('Description complète de la collection.');
 
         $shortDescription = TextareaField::new('shortDescription', 'Description courte')
             ->setRequired(false)
@@ -192,24 +193,19 @@ class ProductCollectionCrudController extends AbstractCrudController
         // =========================
         return [
             FormField::addFieldset('Informations principales'),
-
             $name,
-            $slug,
             $description,
             $shortDescription,
 
             FormField::addFieldset('Image'),
-
             $image,
 
             FormField::addFieldset('Organisation'),
-
             $position,
             $isActive,
             $isFeatured,
 
             FormField::addFieldset('Informations techniques'),
-
             $createdAt,
         ];
     }
@@ -217,6 +213,11 @@ class ProductCollectionCrudController extends AbstractCrudController
     // =========================
     // CREATE
     // =========================
+    private function generateSlugFromName(string $name): string
+    {
+        return $this->slugger->slug($name)->lower()->toString();
+    }
+
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof ProductCollection) {
@@ -224,20 +225,16 @@ class ProductCollectionCrudController extends AbstractCrudController
             return;
         }
 
-        // createdAt auto
         if (null === $entityInstance->getCreatedAt()) {
             $entityInstance->setCreatedAt(new \DateTimeImmutable());
         }
 
-        // position par défaut
         if (null === $entityInstance->getPosition()) {
             $entityInstance->setPosition(0);
         }
 
-        // slug auto si vide
-        if (!$entityInstance->getSlug() && $entityInstance->getName()) {
-            $slug = $this->slugger->slug($entityInstance->getName())->lower();
-            $entityInstance->setSlug($slug);
+        if ($entityInstance->getName()) {
+            $entityInstance->setSlug($this->generateSlugFromName($entityInstance->getName()));
         }
 
         parent::persistEntity($entityManager, $entityInstance);
@@ -253,10 +250,8 @@ class ProductCollectionCrudController extends AbstractCrudController
             return;
         }
 
-        // slug auto si vide
-        if (!$entityInstance->getSlug() && $entityInstance->getName()) {
-            $slug = $this->slugger->slug($entityInstance->getName())->lower();
-            $entityInstance->setSlug($slug);
+        if ($entityInstance->getName()) {
+            $entityInstance->setSlug($this->generateSlugFromName($entityInstance->getName()));
         }
 
         parent::updateEntity($entityManager, $entityInstance);
