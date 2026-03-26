@@ -123,84 +123,104 @@ class ProductApiController extends AbstractController
      * Transforme un Product en tableau JSON stable pour le front (Next)
      */
     private function toArray(Product $p, string $base, bool $includeOffers = false): array
-{
-    $imagePath = $p->getImagePath();
-    $cat = $p->getCategory();
-    $productCollection = $p->getProductCollection();
+    {
+        $imagePath = $p->getImagePath();
+        $cat = $p->getCategory();
+        $productCollection = $p->getProductCollection();
 
-    $data = [
-        'id' => $p->getId(),
-        'title' => $p->getTitle(),
-        'slug' => $p->getSlug(),
-        'priceCents' => $p->getPriceCents(),
-        'description' => $p->getDescription(),
-
-        'imageUrl' => $imagePath ? $base . str_replace('\\', '/', $imagePath) : null,
-        'imagePath' => $imagePath ? str_replace('\\', '/', $imagePath) : null,
-
-        'category' => $cat ? [
-            'id' => $cat->getId(),
-            'name' => $cat->getName(),
-            'slug' => $cat->getSlug(),
-        ] : null,
-
-        'collection' => $productCollection ? [
-            'id' => $productCollection->getId(),
-            'name' => $productCollection->getName(),
-            'slug' => $productCollection->getSlug(),
-        ] : null,
-    ];
-
-    if ($includeOffers) {
-        $offers = $p->getOffers()->toArray();
-
-        usort(
-            $offers,
-            fn(ProductOffer $a, ProductOffer $b) => $a->getPosition() <=> $b->getPosition()
+        $additionalCategories = array_map(
+            fn($category) => [
+                'id' => $category->getId(),
+                'name' => $category->getName(),
+                'slug' => $category->getSlug(),
+            ],
+            $p->getAdditionalCategories()->toArray()
         );
 
-        $offers = array_filter(
-            $offers,
-            fn(ProductOffer $offer) => $offer->isActive()
+        $additionalCollections = array_map(
+            fn($collection) => [
+                'id' => $collection->getId(),
+                'name' => $collection->getName(),
+                'slug' => $collection->getSlug(),
+            ],
+            $p->getAdditionalCollections()->toArray()
         );
 
-        $data['offers'] = array_map(
-            fn(ProductOffer $offer) => $this->offerToArray($offer),
-            $offers
-        );
+        $data = [
+            'id' => $p->getId(),
+            'title' => $p->getTitle(),
+            'slug' => $p->getSlug(),
+            'priceCents' => $p->getPriceCents(),
+            'description' => $p->getDescription(),
+
+            'imageUrl' => $imagePath ? $base . str_replace('\\', '/', $imagePath) : null,
+            'imagePath' => $imagePath ? str_replace('\\', '/', $imagePath) : null,
+
+            'category' => $cat ? [
+                'id' => $cat->getId(),
+                'name' => $cat->getName(),
+                'slug' => $cat->getSlug(),
+            ] : null,
+
+            'collection' => $productCollection ? [
+                'id' => $productCollection->getId(),
+                'name' => $productCollection->getName(),
+                'slug' => $productCollection->getSlug(),
+            ] : null,
+
+            'additionalCategories' => $additionalCategories,
+            'additionalCollections' => $additionalCollections,
+        ];
+
+        if ($includeOffers) {
+            $offers = $p->getOffers()->toArray();
+
+            usort(
+                $offers,
+                fn(ProductOffer $a, ProductOffer $b) => ($a->getPosition() ?? 9999) <=> ($b->getPosition() ?? 9999)
+            );
+
+            $offers = array_filter(
+                $offers,
+                fn(ProductOffer $offer) => $offer->isActive()
+            );
+
+            $data['offers'] = array_map(
+                fn(ProductOffer $offer) => $this->offerToArray($offer),
+                $offers
+            );
+        }
+
+        return $data;
     }
-
-    return $data;
-}
-
     /**
      * Transforme une offre commerciale en tableau JSON
      */
-   /**
- * Transforme une offre commerciale en tableau JSON
- */
-private function offerToArray(ProductOffer $offer): array
-{
-    return [
-        'id' => $offer->getId(),
-        'title' => $offer->getTitle(),
-        'saleType' => $offer->getSaleType(),
-        'quantity' => $offer->getQuantity(),
-        'priceCents' => $offer->getPriceCents(),
+    /**
+     * Transforme une offre commerciale en tableau JSON
+     */
+    private function offerToArray(ProductOffer $offer): array
+    {
+        return [
+            'id' => $offer->getId(),
+            'title' => $offer->getTitle(),
+            'saleType' => $offer->getSaleType(),
+            'quantity' => $offer->getQuantity(),
+            'priceCents' => $offer->getPriceCents(),
 
-        // Indique si l'offre peut recevoir une personnalisation
-        'isCustomizable' => $offer->isCustomizable(),
+            // Indique si l'offre peut recevoir une personnalisation
+            'isCustomizable' => $offer->isCustomizable(),
 
-        // Paramètres d'affichage du champ de personnalisation côté front
-        'customizationLabel' => $offer->getCustomizationLabel(),
-        'customizationPlaceholder' => $offer->getCustomizationPlaceholder(),
-        'customizationMaxLength' => $offer->getCustomizationMaxLength(),
-        'isCustomizationRequired' => $offer->isCustomizationRequired(),
+            // Paramètres d'affichage du champ de personnalisation côté front
+            'customizationLabel' => $offer->getCustomizationLabel(),
+            'customizationPlaceholder' => $offer->getCustomizationPlaceholder(),
+            'customizationMaxLength' => $offer->getCustomizationMaxLength(),
+            'isCustomizationRequired' => $offer->isCustomizationRequired(),
 
-        'isActive' => $offer->isActive(),
-        'position' => $offer->getPosition(),
-        'startsAt' => $offer->getStartsAt()?->format('Y-m-d H:i:s'),
-        'endsAt' => $offer->getEndsAt()?->format('Y-m-d H:i:s'),
-    ];
-}
+            'isActive' => $offer->isActive(),
+            'position' => $offer->getPosition(),
+            'startsAt' => $offer->getStartsAt()?->format('Y-m-d H:i:s'),
+            'endsAt' => $offer->getEndsAt()?->format('Y-m-d H:i:s'),
+        ];
+    }
 }

@@ -4,22 +4,24 @@ namespace App\Entity;
 
 use App\Repository\CartItemRepository;
 use DateTimeImmutable;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Entité Ligne de panier.
  *
  * Rôle :
- * - représenter un produit présent dans un panier
+ * - représenter une ligne commerciale réelle dans un panier
+ * - stocker le produit
+ * - stocker éventuellement l'offre choisie
+ * - stocker éventuellement une personnalisation
  * - stocker la quantité choisie
- * - permettre le calcul du total de la ligne
  *
- * Règle métier :
- * - un même produit ne doit apparaître qu'une seule fois par panier
- *   (contrainte unique cart_id + product_id)
+ * Nouvelle règle métier :
+ * - un même produit peut apparaître plusieurs fois dans le panier
+ *   si l’offre ou la personnalisation diffère
  */
 #[ORM\Entity(repositoryClass: CartItemRepository::class)]
-#[ORM\UniqueConstraint(name: 'uniq_cart_product', columns: ['cart_id', 'product_id'])]
 class CartItem
 {
     /**
@@ -32,22 +34,40 @@ class CartItem
 
     /**
      * Panier propriétaire de cette ligne.
-     *
-     * Plusieurs lignes peuvent appartenir au même panier.
      */
     #[ORM\ManyToOne(inversedBy: 'items')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Cart $cart = null;
 
     /**
-     * Produit associé à cette ligne.
+     * Produit principal associé à cette ligne.
      */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Product $product = null;
 
     /**
-     * Quantité demandée pour ce produit.
+     * Offre commerciale choisie pour ce produit.
+     *
+     * Nullable :
+     * - null = achat simple au prix produit
+     * - non null = achat via une ProductOffer
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?ProductOffer $offer = null;
+
+    /**
+     * Texte de personnalisation saisi par le client.
+     *
+     * Nullable :
+     * - null = aucune personnalisation
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $customization = null;
+
+    /**
+     * Quantité demandée pour cette ligne.
      */
     #[ORM\Column]
     private int $quantity = 1;
@@ -74,7 +94,7 @@ class CartItem
     }
 
     /**
-     * Retourne l'identifiant de la ligne panier.
+     * Retourne l'identifiant technique.
      */
     public function getId(): ?int
     {
@@ -82,7 +102,7 @@ class CartItem
     }
 
     /**
-     * Retourne le panier auquel appartient cette ligne.
+     * Retourne le panier propriétaire.
      */
     public function getCart(): ?Cart
     {
@@ -90,17 +110,18 @@ class CartItem
     }
 
     /**
-     * Définit le panier auquel appartient cette ligne.
+     * Définit le panier propriétaire.
      */
     public function setCart(?Cart $cart): static
     {
         $this->cart = $cart;
+        $this->touch();
 
         return $this;
     }
 
     /**
-     * Retourne le produit associé à cette ligne.
+     * Retourne le produit de la ligne.
      */
     public function getProduct(): ?Product
     {
@@ -108,9 +129,7 @@ class CartItem
     }
 
     /**
-     * Définit le produit associé à cette ligne.
-     *
-     * On met à jour updatedAt car la ligne change.
+     * Définit le produit de la ligne.
      */
     public function setProduct(?Product $product): static
     {
@@ -121,7 +140,50 @@ class CartItem
     }
 
     /**
-     * Retourne la quantité de cette ligne.
+     * Retourne l'offre choisie.
+     */
+    public function getOffer(): ?ProductOffer
+    {
+        return $this->offer;
+    }
+
+    /**
+     * Définit l'offre choisie.
+     */
+    public function setOffer(?ProductOffer $offer): static
+    {
+        $this->offer = $offer;
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * Retourne la personnalisation saisie.
+     */
+    public function getCustomization(): ?string
+    {
+        return $this->customization;
+    }
+
+    /**
+     * Définit la personnalisation.
+     *
+     * Nettoyage :
+     * - trim automatique
+     * - chaîne vide transformée en null
+     */
+    public function setCustomization(?string $customization): static
+    {
+        $customization = $customization !== null ? trim($customization) : null;
+        $this->customization = $customization === '' ? null : $customization;
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * Retourne la quantité.
      */
     public function getQuantity(): int
     {
@@ -129,12 +191,11 @@ class CartItem
     }
 
     /**
-     * Définit la quantité de cette ligne.
+     * Définit la quantité.
      *
      * Sécurité :
-     * - on empêche une quantité inférieure à 1
-     * - si besoin de supprimer la ligne, cela doit être fait
-     *   explicitement dans le controller/service
+     * - minimum 1
+     * - la suppression doit rester gérée ailleurs
      */
     public function setQuantity(int $quantity): static
     {
@@ -145,24 +206,35 @@ class CartItem
     }
 
     /**
-     * Calcule le total de la ligne en centimes.
+     * Retourne le prix unitaire réel en centimes.
      *
-     * Exemple :
-     * - produit = 990 cents
-     * - quantity = 3
-     * => line total = 2970 cents
+     * Priorité :
+     * - prix de l'offre si elle existe
+     * - sinon prix du produit
      */
-    public function getLineTotalCents(): int
+    public function getUnitPriceCents(): int
     {
-        if ($this->product === null) {
-            return 0;
+        if ($this->offer !== null) {
+            return $this->offer->getPriceCents();
         }
 
-        return $this->product->getPriceCents() * $this->quantity;
+        if ($this->product !== null) {
+            return $this->product->getPriceCents();
+        }
+
+        return 0;
     }
 
     /**
-     * Retourne la date de création de la ligne panier.
+     * Calcule le total de la ligne en centimes.
+     */
+    public function getLineTotalCents(): int
+    {
+        return $this->getUnitPriceCents() * $this->quantity;
+    }
+
+    /**
+     * Retourne la date de création.
      */
     public function getCreatedAt(): ?DateTimeImmutable
     {
@@ -170,7 +242,7 @@ class CartItem
     }
 
     /**
-     * Définit la date de création de la ligne panier.
+     * Définit la date de création.
      */
     public function setCreatedAt(DateTimeImmutable $createdAt): static
     {
@@ -180,7 +252,7 @@ class CartItem
     }
 
     /**
-     * Retourne la date de dernière mise à jour de la ligne panier.
+     * Retourne la date de dernière modification.
      */
     public function getUpdatedAt(): ?DateTimeImmutable
     {
@@ -188,7 +260,7 @@ class CartItem
     }
 
     /**
-     * Définit la date de dernière mise à jour de la ligne panier.
+     * Définit la date de dernière modification.
      */
     public function setUpdatedAt(DateTimeImmutable $updatedAt): static
     {

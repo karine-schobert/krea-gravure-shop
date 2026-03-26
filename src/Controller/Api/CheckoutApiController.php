@@ -6,6 +6,7 @@ use App\Entity\Order;
 use App\Entity\OrderItem;
 use App\Entity\User;
 use App\Repository\AddressRepository;
+use App\Repository\ProductOfferRepository;
 use App\Repository\ProductRepository;
 use App\Service\StripeCheckoutService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,8 +27,16 @@ class CheckoutApiController extends AbstractController
      * Attendu côté front :
      * {
      *   "items": [
-     *     { "productId": 1, "quantity": 2 },
-     *     { "productId": 4, "quantity": 1 }
+     *     {
+     *       "productId": 1,
+     *       "quantity": 2,
+     *       "offerId": 5,
+     *       "customization": "Charlotte"
+     *     },
+     *     {
+     *       "productId": 4,
+     *       "quantity": 1
+     *     }
      *   ],
      *   "addressId": 3
      * }
@@ -37,6 +46,7 @@ class CheckoutApiController extends AbstractController
     public function checkoutFromCart(
         Request $request,
         ProductRepository $productRepository,
+        ProductOfferRepository $productOfferRepository,
         AddressRepository $addressRepository,
         StripeCheckoutService $stripeCheckoutService,
         EntityManagerInterface $entityManager
@@ -138,13 +148,11 @@ class CheckoutApiController extends AbstractController
          * Cela permet de conserver les informations
          * même si le client modifie ensuite son carnet.
          */
-        $fullName = trim(
-            sprintf(
-                '%s %s',
-                $address->getFirstName() ?? '',
-                $address->getLastName() ?? ''
-            )
-        );
+        $fullName = trim(sprintf(
+            '%s %s',
+            $address->getFirstName() ?? '',
+            $address->getLastName() ?? ''
+        ));
 
         $order->setShippingFullName($fullName !== '' ? $fullName : null);
         $order->setShippingAddressLine($address->getAddress());
@@ -163,6 +171,8 @@ class CheckoutApiController extends AbstractController
         foreach ($data['items'] as $row) {
             $productId = $row['productId'] ?? null;
             $quantity = (int) ($row['quantity'] ?? 0);
+            $offerId = $row['offerId'] ?? null;
+            $customization = $row['customization'] ?? null;
 
             if (!$productId || $quantity < 1) {
                 return $this->json([
@@ -183,20 +193,95 @@ class CheckoutApiController extends AbstractController
             }
 
             /**
-             * Snapshot du produit au moment de la commande.
+             * Par défaut :
+             * - on garde le prix du produit
+             * - le titre affiché reste celui du produit
              */
             $unitPriceCents = $product->getPriceCents();
+            $productTitleSnapshot = $product->getTitle();
+            $offerTitle = '';
+
+            /**
+             * Si une offre est fournie,
+             * elle devient la référence commerciale
+             * pour le prix et le libellé.
+             */
+            if ($offerId !== null) {
+                $offer = $productOfferRepository->find($offerId);
+
+                if (!$offer) {
+                    return $this->json([
+                        'error' => sprintf('Offre introuvable : %s', $offerId),
+                    ], 404);
+                }
+
+                /**
+                 * Sécurité : l'offre doit appartenir
+                 * au produit envoyé par le front.
+                 */
+                if ($offer->getProduct()?->getId() !== $product->getId()) {
+                    return $this->json([
+                        'error' => 'Offre non liée au produit sélectionné',
+                        'row' => $row,
+                    ], 400);
+                }
+
+                /**
+                 * Sécurité : on évite de laisser passer
+                 * une offre désactivée au checkout.
+                 */
+                if (!$offer->isActive()) {
+                    return $this->json([
+                        'error' => 'Offre non disponible',
+                        'row' => $row,
+                    ], 400);
+                }
+
+                /**
+                 * Si une offre est présente,
+                 * c'est son prix qui fait foi.
+                 */
+                $unitPriceCents = $offer->getPriceCents();
+                $offerTitle = trim((string) $offer->getTitle());
+
+                if ($offerTitle !== '') {
+                    $productTitleSnapshot .= ' - ' . $offerTitle;
+                }
+            }
+
+            /**
+             * Si une personnalisation est présente,
+             * on l'ajoute au titre snapshot pour Stripe
+             * et pour la lisibilité de la commande.
+             */
+            if (is_string($customization) && trim($customization) !== '') {
+                $productTitleSnapshot .= ' - Personnalisation : ' . trim($customization);
+            }
+
+            /**
+             * Calcul du total de ligne.
+             */
             $lineTotalCents = $unitPriceCents * $quantity;
 
+            /**
+             * Création de la ligne de commande.
+             */
             $orderItem = new OrderItem();
             $orderItem->setOrder($order);
             $orderItem->setProduct($product);
-            $orderItem->setProductTitle($product->getTitle());
+            $orderItem->setProductTitle($productTitleSnapshot);
             $orderItem->setProductImage($product->getImage());
             $orderItem->setProductSlug($product->getSlug());
             $orderItem->setUnitPriceCents($unitPriceCents);
             $orderItem->setQuantity($quantity);
             $orderItem->setLineTotalCents($lineTotalCents);
+
+            /**
+             * Pour l'instant, la personnalisation est bien lue
+             * depuis le front et visible dans le titre snapshot,
+             * mais elle n'est pas encore stockée dans un champ dédié
+             * de OrderItem tant que l'entité ne le prévoit pas.
+             */
 
             $order->addItem($orderItem);
 
