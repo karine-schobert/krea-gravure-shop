@@ -235,6 +235,7 @@ class DashboardController extends AbstractDashboardController
     public function configureAssets(): Assets
     {
         return Assets::new()
-            ->addCssFile('admin/admin.css');
+            ->addCssFile('admin/admin.css')
+            ->addJsFile('admin/support-ticket-templates.js');
     }
 }

@@ -41,32 +41,43 @@ class ReviewCrudController extends AbstractCrudController
                 'product.title',
                 'product.slug',
             ])
-            ->setPaginatorPageSize(20);
+            ->setPaginatorPageSize(20)
+
+            // Affiche les actions directement sur la ligne
+            ->showEntityActionsInlined();
     }
 
     public function configureActions(Actions $actions): Actions
     {
         return $actions
+            // Ajoute le bouton "Consulter" sur la page index
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
 
+            // Force l'ordre visible des actions sur l'index
+            ->reorder(Crud::PAGE_INDEX, [Action::DETAIL, Action::EDIT, Action::DELETE])
+
+            // Bouton consulter
             ->update(Crud::PAGE_INDEX, Action::DETAIL, function (Action $action) {
                 return $action
                     ->setLabel('Consulter')
                     ->addCssClass('crud-action-show');
             })
 
+            // Bouton modifier
             ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
                 return $action
                     ->setLabel('Modifier')
                     ->addCssClass('crud-action-edit');
             })
 
+            // Bouton supprimer
             ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
                 return $action
                     ->setLabel('Supprimer')
                     ->addCssClass('crud-action-delete');
             })
 
+            // Boutons sur la page détail
             ->update(Crud::PAGE_DETAIL, Action::EDIT, function (Action $action) {
                 return $action
                     ->setLabel('Modifier')
@@ -85,6 +96,7 @@ class ReviewCrudController extends AbstractCrudController
                     ->addCssClass('crud-action-back');
             })
 
+            // Boutons sur la page édition
             ->update(Crud::PAGE_EDIT, Action::SAVE_AND_RETURN, function (Action $action) {
                 return $action->setLabel('Enregistrer et revenir');
             })
@@ -93,6 +105,7 @@ class ReviewCrudController extends AbstractCrudController
                 return $action->setLabel('Enregistrer et continuer');
             })
 
+            // Les avis viennent du front client, pas de création manuelle en admin
             ->disable(Action::NEW);
     }
 

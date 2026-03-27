@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\SupportTicketRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use DateTimeImmutable;
 
@@ -37,6 +38,20 @@ class SupportTicket
         self::CATEGORY_OTHER => 'Autre',
     ];
 
+    public const STATUS_OPEN = 'OPEN';
+    public const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+    public const STATUS_ANSWERED = 'ANSWERED';
+    public const STATUS_RESOLVED = 'RESOLVED';
+    public const STATUS_CLOSED = 'CLOSED';
+
+    public const STATUSES = [
+        self::STATUS_OPEN => 'Ouvert',
+        self::STATUS_IN_PROGRESS => 'En cours',
+        self::STATUS_ANSWERED => 'Répondu',
+        self::STATUS_RESOLVED => 'Résolu',
+        self::STATUS_CLOSED => 'Fermé',
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -68,30 +83,87 @@ class SupportTicket
     /**
      * Message détaillé du client
      */
-    #[ORM\Column(type: 'text')]
+    #[ORM\Column(type: Types::TEXT)]
     private ?string $message = null;
 
     /**
-     * Statut du ticket (OPEN / CLOSED)
+     * Statut du ticket
      */
     #[ORM\Column(length: 50)]
-    private string $status = 'OPEN';
+    private string $status = self::STATUS_OPEN;
 
     /**
-     * Date de création
+     * Réponse de l'administrateur
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $adminReply = null;
+
+    /**
+     * Code temporaire du modèle de réponse choisi dans l’admin.
+     *
+     * Important :
+     * - cette propriété n'est PAS persistée en base
+     * - il n'y a donc volontairement aucune annotation #[ORM\Column]
+     * - elle sert uniquement à EasyAdmin pour stocker temporairement
+     *   le choix d’un template de réponse
+     * - ensuite, le CRUD l’utilise pour remplir adminReply
+     */
+    private ?string $replyTemplateCode = null;
+
+    /**
+     * Date de création du ticket
      */
     #[ORM\Column]
     private ?DateTimeImmutable $createdAt = null;
 
-    /*
-    |--------------------------------------------------------------------------
-    | GETTERS / SETTERS
-    |--------------------------------------------------------------------------
-    */
+    /**
+     * Date de dernière modification
+     */
+    #[ORM\Column(nullable: true)]
+    private ?DateTimeImmutable $updatedAt = null;
+
+    /**
+     * Date de première réponse admin
+     */
+    #[ORM\Column(nullable: true)]
+    private ?DateTimeImmutable $answeredAt = null;
+
+    public function __construct()
+    {
+        $this->createdAt = new DateTimeImmutable();
+        $this->status = self::STATUS_OPEN;
+    }
+
+    public static function getAvailableStatuses(): array
+    {
+        return array_flip(self::STATUSES);
+    }
+
+    public static function getAvailableCategories(): array
+    {
+        return array_flip(self::CATEGORIES);
+    }
 
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getCategory(): ?string
+    {
+        return $this->category;
+    }
+
+    public function setCategory(string $category): static
+    {
+        $this->category = $category;
+
+        return $this;
+    }
+
+    public function getCategoryLabel(): ?string
+    {
+        return self::CATEGORIES[$this->category] ?? $this->category;
     }
 
     public function getUser(): ?User
@@ -154,6 +226,44 @@ class SupportTicket
         return $this;
     }
 
+    public function getStatusLabel(): string
+    {
+        return self::STATUSES[$this->status] ?? $this->status;
+    }
+
+    public function getAdminReply(): ?string
+    {
+        return $this->adminReply;
+    }
+
+    public function setAdminReply(?string $adminReply): static
+    {
+        $this->adminReply = $adminReply;
+
+        return $this;
+    }
+
+    /**
+     * Retourne le code temporaire du template sélectionné dans l’admin.
+     */
+    public function getReplyTemplateCode(): ?string
+    {
+        return $this->replyTemplateCode;
+    }
+
+    /**
+     * Définit le code temporaire du template sélectionné dans l’admin.
+     *
+     * Exemple de valeur attendue :
+     * "damaged_product::request_photos"
+     */
+    public function setReplyTemplateCode(?string $replyTemplateCode): static
+    {
+        $this->replyTemplateCode = $replyTemplateCode;
+
+        return $this;
+    }
+
     public function getCreatedAt(): ?DateTimeImmutable
     {
         return $this->createdAt;
@@ -165,14 +275,27 @@ class SupportTicket
 
         return $this;
     }
-    public function getCategory(): ?string
+
+    public function getUpdatedAt(): ?DateTimeImmutable
     {
-        return $this->category;
+        return $this->updatedAt;
     }
 
-    public function setCategory(string $category): static
+    public function setUpdatedAt(?DateTimeImmutable $updatedAt): static
     {
-        $this->category = $category;
+        $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getAnsweredAt(): ?DateTimeImmutable
+    {
+        return $this->answeredAt;
+    }
+
+    public function setAnsweredAt(?DateTimeImmutable $answeredAt): static
+    {
+        $this->answeredAt = $answeredAt;
 
         return $this;
     }
