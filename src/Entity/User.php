@@ -95,6 +95,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $addresses;
 
     /**
+     * Liste des tickets support liés à cet utilisateur.
+     *
+     * @var Collection<int, SupportTicket>
+     */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: SupportTicket::class, orphanRemoval: true)]
+    private Collection $supportTickets;
+
+    /**
      * Liste des commandes liées à cet utilisateur.
      *
      * @var Collection<int, Order>
@@ -106,6 +114,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->addresses = new ArrayCollection();
         $this->orders = new ArrayCollection();
+        $this->supportTickets = new ArrayCollection();
     }
 
     /**
@@ -191,6 +200,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return (string) $this->email;
     }
+
 
     /**
      * Retourne les rôles.
@@ -284,7 +294,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-     /**
+
+    /**
      * Compteur utile easyadmin.
      */
     public function getAddressesCount(): int
@@ -371,6 +382,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
 
         $this->cart = $cart;
+
+        return $this;
+    }
+    /**
+     * @return Collection<int, SupportTicket>
+     */
+    public function getSupportTickets(): Collection
+    {
+        return $this->supportTickets;
+    }
+
+    public function addSupportTicket(SupportTicket $supportTicket): static
+    {
+        if (!$this->supportTickets->contains($supportTicket)) {
+            $this->supportTickets->add($supportTicket);
+            $supportTicket->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSupportTicket(SupportTicket $supportTicket): static
+    {
+        if ($this->supportTickets->removeElement($supportTicket)) {
+            if ($supportTicket->getUser() === $this) {
+                $supportTicket->setUser(null);
+            }
+        }
 
         return $this;
     }

@@ -9,22 +9,53 @@ use DateTimeImmutable;
 #[ORM\Entity(repositoryClass: SupportTicketRepository::class)]
 class SupportTicket
 {
+    public const CATEGORY_NOT_RECEIVED = 'not_received';
+    public const CATEGORY_LATE_DELIVERY = 'late_delivery';
+    public const CATEGORY_DAMAGED_PRODUCT = 'damaged_product';
+    public const CATEGORY_WRONG_PRODUCT = 'wrong_product';
+    public const CATEGORY_ORDER_ERROR = 'order_error';
+    public const CATEGORY_MISSING_ITEM = 'missing_item';
+    public const CATEGORY_CUSTOMIZATION_PROBLEM = 'customization_problem';
+    public const CATEGORY_ORDER_MODIFICATION = 'order_modification';
+    public const CATEGORY_ORDER_CANCELLATION = 'order_cancellation';
+    public const CATEGORY_REFUND_REQUEST = 'refund_request';
+    public const CATEGORY_PAYMENT_PROBLEM = 'payment_problem';
+    public const CATEGORY_OTHER = 'other';
+
+    public const CATEGORIES = [
+        self::CATEGORY_NOT_RECEIVED => 'Commande non reçue',
+        self::CATEGORY_LATE_DELIVERY => 'Retard de livraison',
+        self::CATEGORY_DAMAGED_PRODUCT => 'Produit abîmé à la réception',
+        self::CATEGORY_WRONG_PRODUCT => 'Produit non conforme',
+        self::CATEGORY_ORDER_ERROR => 'Erreur dans la commande',
+        self::CATEGORY_MISSING_ITEM => 'Article manquant',
+        self::CATEGORY_CUSTOMIZATION_PROBLEM => 'Problème de personnalisation',
+        self::CATEGORY_ORDER_MODIFICATION => 'Demande de modification de commande',
+        self::CATEGORY_ORDER_CANCELLATION => 'Demande d’annulation',
+        self::CATEGORY_REFUND_REQUEST => 'Demande de remboursement',
+        self::CATEGORY_PAYMENT_PROBLEM => 'Problème de paiement',
+        self::CATEGORY_OTHER => 'Autre',
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[ORM\Column(length: 100)]
+    private ?string $category = null;
+
     /**
      * Utilisateur qui crée le ticket
      */
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(inversedBy: 'supportTickets')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
     /**
      * Commande concernée
      */
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(inversedBy: 'supportTickets')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Order $order = null;
 
@@ -51,7 +82,6 @@ class SupportTicket
      */
     #[ORM\Column]
     private ?DateTimeImmutable $createdAt = null;
-
 
     /*
     |--------------------------------------------------------------------------
@@ -132,6 +162,17 @@ class SupportTicket
     public function setCreatedAt(DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
+
+        return $this;
+    }
+    public function getCategory(): ?string
+    {
+        return $this->category;
+    }
+
+    public function setCategory(string $category): static
+    {
+        $this->category = $category;
 
         return $this;
     }

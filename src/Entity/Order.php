@@ -131,9 +131,18 @@ class Order
     )]
     private Collection $items;
 
+    /**
+     * Tickets support liés à cette commande.
+     *
+     * @var Collection<int, SupportTicket>
+     */
+    #[ORM\OneToMany(mappedBy: 'order', targetEntity: SupportTicket::class, orphanRemoval: true)]
+    private Collection $supportTickets;
+
     public function __construct()
     {
         $this->items = new ArrayCollection();
+        $this->supportTickets = new ArrayCollection();
         $this->createdAt = new DateTimeImmutable();
         $this->updatedAt = new DateTimeImmutable();
         $this->status = self::STATUS_PENDING_PAYMENT;
@@ -154,7 +163,7 @@ class Order
             $this->status ?? 'sans statut'
         );
     }
-   
+
     public function getId(): ?int
     {
         return $this->id;
@@ -463,6 +472,35 @@ class Order
         if ($this->items->removeElement($item)) {
             if ($item->getOrder() === $this) {
                 $item->setOrder(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, SupportTicket>
+     */
+    public function getSupportTickets(): Collection
+    {
+        return $this->supportTickets;
+    }
+
+    public function addSupportTicket(SupportTicket $supportTicket): static
+    {
+        if (!$this->supportTickets->contains($supportTicket)) {
+            $this->supportTickets->add($supportTicket);
+            $supportTicket->setOrder($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSupportTicket(SupportTicket $supportTicket): static
+    {
+        if ($this->supportTickets->removeElement($supportTicket)) {
+            if ($supportTicket->getOrder() === $this) {
+                $supportTicket->setOrder(null);
             }
         }
 
