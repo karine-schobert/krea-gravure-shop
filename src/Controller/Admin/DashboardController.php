@@ -119,6 +119,12 @@ class DashboardController extends AbstractDashboardController
             ->setAction(Action::INDEX)
             ->generateUrl();
 
+        $staticPageUrl = $adminUrlGenerator
+            ->unsetAll()
+            ->setController(StaticPageCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
+
         // =========================================================
         // CATALOGUE
         // =========================================================
@@ -154,6 +160,7 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::subMenu('Pages du site', 'fa fa-desktop')->setSubItems([
             MenuItem::linkToUrl('Homepage', 'fa fa-home', $homepageUrl),
             MenuItem::linkToUrl('Page boutique', 'fa fa-store', $shopPageSettingsUrl),
+            MenuItem::linkToUrl('Pages statiques', 'fa fa-file-alt', $staticPageUrl),
         ]);
 
         // =========================================================
@@ -189,19 +196,13 @@ class DashboardController extends AbstractDashboardController
         ]);
 
         // =========================================================
-        // IDÉES DE PAGES FUTURES
+        // IDÉES DE BLOCS FUTURS
         // =========================================================
 
         /*
         $faqUrl = $adminUrlGenerator
             ->unsetAll()
             ->setController(FaqCrudController::class)
-            ->setAction(Action::INDEX)
-            ->generateUrl();
-
-        $legalPageUrl = $adminUrlGenerator
-            ->unsetAll()
-            ->setController(LegalPageCrudController::class)
             ->setAction(Action::INDEX)
             ->generateUrl();
 
@@ -217,17 +218,16 @@ class DashboardController extends AbstractDashboardController
             ->setAction(Action::INDEX)
             ->generateUrl();
 
-        yield MenuItem::subMenu('Contenu avancé', 'fa fa-file-alt')->setSubItems([
-            MenuItem::linkToUrl('FAQ', 'fa fa-question-circle', $faqUrl),
-            MenuItem::linkToUrl('Pages légales', 'fa fa-gavel', $legalPageUrl),
-        ]);
+            yield MenuItem::subMenu('Contenu avancé', 'fa fa-file-alt')->setSubItems([
+                MenuItem::linkToUrl('FAQ', 'fa fa-question-circle', $faqUrl),
+            ]);
 
-        yield MenuItem::subMenu('Promotions', 'fa fa-ticket-alt')->setSubItems([
-            MenuItem::linkToUrl('Codes promo', 'fa fa-tags', $promoCodeUrl),
-        ]);
+            yield MenuItem::subMenu('Promotions', 'fa fa-ticket-alt')->setSubItems([
+                MenuItem::linkToUrl('Codes promo', 'fa fa-tags', $promoCodeUrl),
+            ]);
 
-        yield MenuItem::subMenu('Personnalisation avancée', 'fa fa-pencil-ruler')->setSubItems([
-            MenuItem::linkToUrl('Options de personnalisation', 'fa fa-sliders-h', $customizationOptionUrl),
+            yield MenuItem::subMenu('Personnalisation avancée', 'fa fa-pencil-ruler')->setSubItems([
+                MenuItem::linkToUrl('Options de personnalisation', 'fa fa-sliders-h', $customizationOptionUrl),
         ]);
         */
     }
