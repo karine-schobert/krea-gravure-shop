@@ -7,6 +7,7 @@ use App\Entity\Product;
 use App\Entity\WorkshopRequestItem;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -23,13 +24,10 @@ class WorkshopRequestItemType extends AbstractType
             | Sélection catalogue optionnelle
             |------------------------------------------------------------------
             |
-            | En V1, on laisse le client libre :
-            | - de choisir une catégorie
-            | - de choisir un produit
-            | - ou simplement de décrire son idée avec un libellé libre
-            |
-            | L'entité WorkshopRequestItem impose seulement qu'au moins un de
-            | ces trois éléments existe : category, product ou customLabel.
+            | En V1, le client peut :
+            | - choisir une catégorie
+            | - choisir un produit
+            | - ou simplement décrire son besoin via un libellé libre
             |
             */
 
@@ -54,9 +52,8 @@ class WorkshopRequestItemType extends AbstractType
             | Libellé libre
             |------------------------------------------------------------------
             |
-            | Ce champ est très important pour la V1.
-            | Il permet au client d’exprimer son besoin même s’il ne trouve pas
-            | exactement son produit dans le catalogue.
+            | Permet au client de décrire une idée qui n'existe pas encore
+            | clairement dans le catalogue.
             |
             */
 
@@ -72,10 +69,6 @@ class WorkshopRequestItemType extends AbstractType
             |------------------------------------------------------------------
             | Quantité
             |------------------------------------------------------------------
-            |
-            | Optionnelle en V1, mais utile pour devis / demande pro /
-            | événement / précommande.
-            |
             */
 
             ->add('quantity', IntegerType::class, [
@@ -89,13 +82,8 @@ class WorkshopRequestItemType extends AbstractType
 
             /*
             |------------------------------------------------------------------
-            | Personnalisation et détails de fabrication
+            | Personnalisation
             |------------------------------------------------------------------
-            |
-            | Tous ces champs restent facultatifs en V1.
-            | Ils servent à récupérer un maximum de contexte sans bloquer
-            | inutilement la soumission.
-            |
             */
 
             ->add('personalizationText', TextareaType::class, [
@@ -107,29 +95,89 @@ class WorkshopRequestItemType extends AbstractType
                 ],
             ])
 
-            ->add('materialNotes', TextType::class, [
+            /*
+            |------------------------------------------------------------------
+            | Matière souhaitée
+            |------------------------------------------------------------------
+            |
+            | On passe ici en liste prédéfinie pour normaliser les demandes.
+            |
+            */
+
+            ->add('materialNotes', ChoiceType::class, [
                 'label' => 'Matière souhaitée',
                 'required' => false,
-                'attr' => [
-                    'placeholder' => 'Ex : bois clair, contreplaqué, MDF, à définir…',
+                'placeholder' => 'Choisir une matière…',
+                'choices' => [
+                    'Bois naturel' => 'bois_naturel',
+                    'À définir ensemble' => 'a_definir',
                 ],
             ])
 
-            ->add('formatNotes', TextType::class, [
+            /*
+            |------------------------------------------------------------------
+            | Format / forme
+            |------------------------------------------------------------------
+            |
+            | Liste prédéfinie selon les formats réellement proposés
+            | ou fréquemment demandés dans l’atelier.
+            |
+            */
+
+            ->add('formatNotes', ChoiceType::class, [
                 'label' => 'Format / forme',
                 'required' => false,
-                'attr' => [
-                    'placeholder' => 'Ex : rond, rectangle, ovale, marque-page…',
+                'placeholder' => 'Choisir un format…',
+                'choices' => [
+                    'Porte-clés rond' => 'porte_cle_rond',
+                    'Porte-clés rectangulaire' => 'porte_cle_rectangulaire',
+                    'Porte-clés ovale' => 'porte_cle_ovale',
+                    'Marque-page' => 'marque_page',
+                    'Plaque prénom' => 'plaque_prenom',
+                    'Plaque entreprise' => 'plaque_entreprise',
+                    'Dessous de verre rond' => 'dessous_verre_rond',
+                    'Dessous de verre carré' => 'dessous_verre_carre',
+                    'Boule de Noël' => 'boule_noel',
+                    'Bijoux' => 'bijoux',
+                    'Autre format' => 'autre',
                 ],
             ])
 
-            ->add('colorNotes', TextType::class, [
+            /*
+            |------------------------------------------------------------------
+            | Couleur / finition
+            |------------------------------------------------------------------
+            |
+            | Liste fermée basée sur les possibilités réelles de l’atelier.
+            |
+            */
+
+            ->add('colorNotes', ChoiceType::class, [
                 'label' => 'Couleur / finition',
                 'required' => false,
-                'attr' => [
-                    'placeholder' => 'Ex : naturel, peint, verni, à discuter…',
+                'placeholder' => 'Choisir une finition…',
+                'choices' => [
+                    'Naturel' => 'naturel',
+                    'Vernis transparent' => 'vernis_transparent',
+                    'Vernis brillant' => 'vernis_brillant',
+                    'Jaune' => 'jaune',
+                    'Bleu' => 'bleu',
+                    'Rouge' => 'rouge',
+                    'Vert' => 'vert',
+                    'Noir' => 'noir',
+                    'À définir ensemble' => 'a_definir',
                 ],
             ])
+
+            /*
+            |------------------------------------------------------------------
+            | Dimensions libres
+            |------------------------------------------------------------------
+            |
+            | On laisse ce champ libre car il peut varier fortement selon
+            | la demande client.
+            |
+            */
 
             ->add('dimensionsNotes', TextType::class, [
                 'label' => 'Dimensions approximatives',
@@ -138,6 +186,16 @@ class WorkshopRequestItemType extends AbstractType
                     'placeholder' => 'Ex : 10 cm, format A6, petit modèle…',
                 ],
             ])
+
+            /*
+            |------------------------------------------------------------------
+            | Précisions complémentaires
+            |------------------------------------------------------------------
+            |
+            | Sert à récupérer tout ce qui ne rentre pas dans les champs
+            | standardisés ci-dessus.
+            |
+            */
 
             ->add('lineMessage', TextareaType::class, [
                 'label' => 'Précisions supplémentaires pour cette ligne',

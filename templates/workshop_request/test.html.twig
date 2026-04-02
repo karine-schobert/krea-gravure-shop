@@ -31,13 +31,13 @@
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
                     </div>
                 {% endfor %}
+
                 {% for message in app.flashes('danger') %}
                     <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
                     </div>
                 {% endfor %}
-                
             </div>
         </div>
 
@@ -53,6 +53,7 @@
                                 'data-turbo': 'false'
                             }
                         }) }}
+                        {#{ dump(form.vars.multipart) }#
 
                         {# -------------------------------------------------------------- #}
                         {# Erreurs globales du formulaire principal                        #}
@@ -255,6 +256,27 @@
                         <hr class="my-4">
 
                         {# -------------------------------------------------------------- #}
+                        {# Pièces jointes                                                  #}
+                        {# -------------------------------------------------------------- #}
+                        <section class="my-5">
+                            <div class="mb-3">
+                                <h2 class="h4 mb-1">Pièces jointes</h2>
+                                <p class="text-muted mb-0">
+                                    Ajoute ici un ou plusieurs fichiers pour illustrer la demande :
+                                    logo, visuel, photo d’inspiration, document PDF, etc.
+                                </p>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    {{ form_row(form.attachmentFiles) }}
+                                </div>
+                            </div>
+                        </section>
+
+                        <hr class="my-4">
+
+                        {# -------------------------------------------------------------- #}
                         {# Consentement                                                    #}
                         {# -------------------------------------------------------------- #}
                         <section class="my-5">
@@ -279,7 +301,9 @@
                             <p class="text-muted small mb-0">
                                 Test technique de la V1 WorkshopRequest.
                             </p>
+
                             {{ form_rest(form) }}
+
                             <button type="submit" class="btn btn-primary btn-lg px-4">
                                 Enregistrer la demande de test
                             </button>

@@ -9,11 +9,14 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TelType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\All;
+use Symfony\Component\Validator\Constraints\File;
 
 class WorkshopRequestType extends AbstractType
 {
@@ -168,6 +171,48 @@ class WorkshopRequestType extends AbstractType
                 'by_reference' => false,
                 'required' => false,
                 'prototype' => true,
+            ])
+
+            /*
+            |------------------------------------------------------------------
+            | Pièces jointes
+            |------------------------------------------------------------------
+            |
+            | Champ NON MAPPÉ :
+            | - il ne correspond à aucune propriété directe de WorkshopRequest
+            | - il sert uniquement à récupérer des UploadedFile dans le contrôleur
+            | - le contrôleur créera ensuite les entités WorkshopRequestAttachment
+            |
+            | Important :
+            | - facultatif
+            | - multiple autorisé
+            |
+            */
+
+            ->add('attachmentFiles', FileType::class, [
+                'label' => 'Pièces jointes',
+                'mapped' => false,
+                'required' => false,
+                'multiple' => true,
+                'constraints' => [
+                    new All([
+                        'constraints' => [
+                            new File([
+                                'maxSize' => '10M',
+                                'mimeTypes' => [
+                                    'image/jpeg',
+                                    'image/png',
+                                    'image/webp',
+                                    'application/pdf',
+                                ],
+                                'mimeTypesMessage' => 'Veuillez envoyer un fichier JPG, PNG, WEBP ou PDF.',
+                            ]),
+                        ],
+                    ]),
+                ],
+                'attr' => [
+                    'accept' => '.jpg,.jpeg,.png,.webp,.pdf',
+                ],
             ])
 
             /*

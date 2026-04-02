@@ -508,22 +508,32 @@ class WorkshopRequest
     | Lifecycle callbacks Doctrine
     |--------------------------------------------------------------------------
     */
-
-    /**
-     * Sécurité supplémentaire à l'insertion.
-     */
     #[ORM\PrePersist]
-public function onPrePersist(): void
-{
-    $now = new \DateTimeImmutable();
+    public function onPrePersist(): void
+    {
+        /*
+    |----------------------------------------------------------------------
+    | Date de référence unique pour cette insertion
+    |----------------------------------------------------------------------
+    |
+    | On capture "maintenant" une seule fois pour garder une cohérence
+    | parfaite entre tous les champs automatiques générés au PrePersist.
+    |
+    */
+        $now = new \DateTimeImmutable();
 
-    if ($this->createdAt === null) {
-        $this->createdAt = $now;
-    }
+        /*
+    |----------------------------------------------------------------------
+    | Dates techniques
+    |----------------------------------------------------------------------
+    */
+        if ($this->createdAt === null) {
+            $this->createdAt = $now;
+        }
 
-    $this->updatedAt = $now;
+        $this->updatedAt = $now;
 
-    /*
+        /*
     |----------------------------------------------------------------------
     | Génération automatique de la référence métier
     |----------------------------------------------------------------------
@@ -533,22 +543,42 @@ public function onPrePersist(): void
     | WR-20260402-153045-482
     |
     */
-    if ($this->reference === null || '' === trim($this->reference)) {
-        $this->reference = 'WR-' . $now->format('Ymd-His') . '-' . random_int(100, 999);
+        if ($this->reference === null || '' === trim($this->reference)) {
+            $this->reference = 'WR-' . $now->format('Ymd-His') . '-' . random_int(100, 999);
+        }
+
+        /*
+    |----------------------------------------------------------------------
+    | Consentement RGPD
+    |----------------------------------------------------------------------
+    |
+    | Si le consentement est coché mais qu'aucune date n'est encore
+    | enregistrée, on mémorise la date du consentement.
+    |
+    */
+        if ($this->consentRgpd && $this->consentRgpdAt === null) {
+            $this->consentRgpdAt = $now;
+        }
+
+        /*
+    |----------------------------------------------------------------------
+    | Date métier de soumission
+    |----------------------------------------------------------------------
+    */
+        if ($this->submittedAt === null) {
+            $this->submittedAt = $now;
+        }
+
+        /*
+    |----------------------------------------------------------------------
+    | Archivage automatique si statut déjà archivé à l'insertion
+    |----------------------------------------------------------------------
+    */
+        if ($this->status === self::STATUS_ARCHIVED && $this->archivedAt === null) {
+            $this->archivedAt = $now;
+        }
     }
 
-    if ($this->consentRgpd && $this->consentRgpdAt === null) {
-        $this->consentRgpdAt = $now;
-    }
-
-    if ($this->submittedAt === null) {
-        $this->submittedAt = $now;
-    }
-
-    if ($this->status === self::STATUS_ARCHIVED && $this->archivedAt === null) {
-        $this->archivedAt = $now;
-    }
-}
     /**
      * Met à jour automatiquement updatedAt avant chaque modification.
      */
