@@ -125,6 +125,12 @@ class DashboardController extends AbstractDashboardController
             ->setAction(Action::INDEX)
             ->generateUrl();
 
+        $workshopRequestUrl = $adminUrlGenerator
+            ->unsetAll()
+            ->setController(WorkshopRequestCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
+
         // =========================================================
         // CATALOGUE
         // =========================================================
@@ -172,6 +178,16 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::subMenu('Produits personnalisables', 'fa fa-magic')->setSubItems([
             MenuItem::linkToUrl('Produits', 'fa fa-box', $productUrl),
             MenuItem::linkToUrl('Offres produit', 'fa fa-percent', $productOfferUrl),
+        ]);
+
+        // =========================================================
+        // ATELIER
+        // =========================================================
+
+        yield MenuItem::section('Atelier');
+
+        yield MenuItem::subMenu('Demandes atelier', 'fa fa-screwdriver-wrench')->setSubItems([
+            MenuItem::linkToUrl('Demandes atelier', 'fa fa-envelope-open-text', $workshopRequestUrl),
         ]);
 
         // =========================================================

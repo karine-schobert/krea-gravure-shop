@@ -72,8 +72,9 @@ class WorkshopRequestType extends AbstractType
             ->add('preferredContactMethod', ChoiceType::class, [
                 'label' => 'Préférence de contact',
                 'choices' => [
-                    'E-mail' => 'email',
-                    'Téléphone' => 'phone',
+                    'E-mail' => WorkshopRequest::CONTACT_METHOD_EMAIL,
+                    'Téléphone' => WorkshopRequest::CONTACT_METHOD_PHONE,
+                    'Peu importe' => WorkshopRequest::CONTACT_METHOD_EITHER,
                 ],
                 'placeholder' => 'Choisir un mode de contact',
                 'required' => false,
@@ -186,6 +187,13 @@ class WorkshopRequestType extends AbstractType
             | Important :
             | - facultatif
             | - multiple autorisé
+            | - validation appliquée à CHAQUE fichier
+            |
+            | Formats autorisés pour une vraie demande atelier :
+            | - PDF
+            | - JPG / JPEG
+            | - PNG
+            | - WEBP
             |
             */
 
@@ -200,19 +208,20 @@ class WorkshopRequestType extends AbstractType
                             new File([
                                 'maxSize' => '10M',
                                 'mimeTypes' => [
+                                    'application/pdf',
                                     'image/jpeg',
                                     'image/png',
                                     'image/webp',
-                                    'application/pdf',
                                 ],
-                                'mimeTypesMessage' => 'Veuillez envoyer un fichier JPG, PNG, WEBP ou PDF.',
+                                'mimeTypesMessage' => 'Veuillez envoyer un fichier PDF, JPG, PNG ou WEBP.',
                             ]),
                         ],
                     ]),
                 ],
                 'attr' => [
-                    'accept' => '.jpg,.jpeg,.png,.webp,.pdf',
+                    'accept' => '.pdf,.jpg,.jpeg,.png,.webp',
                 ],
+                'help' => 'Formats acceptés : PDF, JPG, PNG, WEBP. Taille maximale : 10 Mo par fichier.',
             ])
 
             /*

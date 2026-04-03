@@ -74,6 +74,7 @@ class WorkshopRequestItemType extends AbstractType
             ->add('quantity', IntegerType::class, [
                 'label' => 'Quantité souhaitée',
                 'required' => false,
+                'empty_data' => '',
                 'attr' => [
                     'min' => 1,
                     'placeholder' => 'Ex : 10',

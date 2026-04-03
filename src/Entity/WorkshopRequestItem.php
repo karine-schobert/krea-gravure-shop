@@ -457,4 +457,6 @@ class WorkshopRequestItem
 
         return $this;
     }
+
+
 }

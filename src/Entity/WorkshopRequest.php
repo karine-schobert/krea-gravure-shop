@@ -855,6 +855,65 @@ class WorkshopRequest
 
     /*
     |--------------------------------------------------------------------------
+    | Aperçu texte des lignes de besoin pour l’admin
+    |--------------------------------------------------------------------------
+    |
+    | Cette méthode transforme la collection d'items en texte lisible pour
+    | EasyAdmin sur la page détail.
+    |
+    | Elle évite d'essayer d'afficher directement la collection Doctrine
+    | "items" dans un TextareaField, ce qui provoquerait une erreur de
+    | conversion en chaîne.
+    |
+    */
+    public function getItemsPreview(): string
+    {
+        if ($this->items->isEmpty()) {
+            return 'Aucune ligne de besoin.';
+        }
+
+        $lines = [];
+
+        foreach ($this->items as $item) {
+            $parts = [];
+            $parts[] = '• ' . $item->getDisplayLabel();
+
+            if ($item->getQuantity() !== null) {
+                $parts[] = 'Qté : ' . $item->getQuantity();
+            }
+
+            if ($item->getPersonalizationText()) {
+                $parts[] = 'Personnalisation : ' . $item->getPersonalizationText();
+            }
+
+            if ($item->getMaterialNotes()) {
+                $parts[] = 'Matière : ' . $item->getMaterialNotes();
+            }
+
+            if ($item->getFormatNotes()) {
+                $parts[] = 'Format : ' . $item->getFormatNotes();
+            }
+
+            if ($item->getColorNotes()) {
+                $parts[] = 'Couleur : ' . $item->getColorNotes();
+            }
+
+            if ($item->getDimensionsNotes()) {
+                $parts[] = 'Dimensions : ' . $item->getDimensionsNotes();
+            }
+
+            if ($item->getLineMessage()) {
+                $parts[] = 'Message : ' . $item->getLineMessage();
+            }
+
+            $lines[] = implode(' | ', $parts);
+        }
+
+        return implode("\n\n", $lines);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Getters / Setters
     |--------------------------------------------------------------------------
     */
@@ -1507,6 +1566,15 @@ class WorkshopRequest
         }
 
         return $this;
+    }
+    public function getItemsCount(): int
+    {
+        return $this->items->count();
+    }
+
+    public function getAttachmentsCount(): int
+    {
+        return $this->attachments->count();
     }
 
     public function __toString(): string

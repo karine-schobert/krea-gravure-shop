@@ -222,6 +222,43 @@ class WorkshopRequestAttachment
             ?? $this->storedName
             ?? ('Pièce jointe #' . $this->id);
     }
+    /**
+     * Construit une URL web exploitable par le navigateur à partir du chemin stocké.
+     *
+     * Cas gérés :
+     * - public\uploads\workshop-requests\...
+     * - public/uploads/workshop-requests/...
+     * - uploads/workshop-requests/...
+     * - /uploads/workshop-requests/...
+     *
+     * Objectif final :
+     * - toujours retourner une URL web propre du type
+     *   /uploads/workshop-requests/2026/04/mon-fichier.jpg
+     */
+    public function getPublicUrl(): ?string
+    {
+        if (!$this->path) {
+            return null;
+        }
+
+        // Uniformise les séparateurs Windows "\" vers "/"
+        $normalizedPath = str_replace('\\', '/', trim($this->path));
+
+        // Supprime un éventuel préfixe "public/"
+        if (str_starts_with($normalizedPath, 'public/')) {
+            $normalizedPath = substr($normalizedPath, strlen('public/'));
+        }
+
+        // Supprime aussi un éventuel préfixe "/public/"
+        if (str_starts_with($normalizedPath, '/public/')) {
+            $normalizedPath = substr($normalizedPath, strlen('/public'));
+        }
+
+        // Garantit que l'URL commence bien par "/"
+        $normalizedPath = '/' . ltrim($normalizedPath, '/');
+
+        return $normalizedPath;
+    }
 
     public function __toString(): string
     {

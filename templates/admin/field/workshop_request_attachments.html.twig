@@ -1,0 +1,159 @@
+{# ============================================================================
+   Champ custom EasyAdmin - aperçu des pièces jointes WorkshopRequest
+   ============================================================================
+   Ce template affiche les pièces jointes d'une demande atelier dans EasyAdmin.
+
+   Formats principalement attendus :
+   - PDF
+   - JPG / JPEG
+   - PNG
+   - WEBP
+
+   Source utilisée :
+   - entity.instance.attachments
+
+   Champs utiles sur chaque pièce jointe :
+   - originalName
+   - mimeType
+   - size
+   - attachmentType
+   - publicUrl
+   ============================================================================ #}
+
+{% set attachments = entity.instance.attachments %}
+
+{% if attachments is empty %}
+    <span class="text-muted">Aucune pièce jointe.</span>
+{% else %}
+    <div class="d-flex flex-column gap-3">
+        {% for attachment in attachments %}
+            {# -----------------------------------------------------------------
+               Préparation des données
+               ----------------------------------------------------------------- #}
+            {% set mimeType = attachment.mimeType ?? '' %}
+            {% set publicUrl = attachment.publicUrl ?? null %}
+            {% set fileName = attachment.originalName ?? 'Fichier joint' %}
+            {% set fileSize = attachment.size ?? null %}
+            {% set attachmentCategory = attachment.attachmentType ?? null %}
+
+            {# -----------------------------------------------------------------
+               Détection simple du type de fichier
+               ----------------------------------------------------------------- #}
+            {% set isPdf = mimeType == 'application/pdf' %}
+            {% set isImage = mimeType starts with 'image/' %}
+
+            {# -----------------------------------------------------------------
+               Libellé lisible du type
+               ----------------------------------------------------------------- #}
+            {% set readableType = 'Fichier' %}
+            {% if isPdf %}
+                {% set readableType = 'PDF' %}
+            {% elseif mimeType == 'image/jpeg' %}
+                {% set readableType = 'Image JPEG' %}
+            {% elseif mimeType == 'image/png' %}
+                {% set readableType = 'Image PNG' %}
+            {% elseif mimeType == 'image/webp' %}
+                {% set readableType = 'Image WEBP' %}
+            {% elseif isImage %}
+                {% set readableType = 'Image' %}
+            {% elseif mimeType %}
+                {% set readableType = mimeType %}
+            {% endif %}
+
+            {# -----------------------------------------------------------------
+               Taille formatée
+               ----------------------------------------------------------------- #}
+            {% set readableSize = null %}
+            {% if fileSize is not null %}
+                {% if fileSize >= 1048576 %}
+                    {% set readableSize = (fileSize / 1048576)|number_format(2, ',', ' ') ~ ' Mo' %}
+                {% elseif fileSize >= 1024 %}
+                    {% set readableSize = (fileSize / 1024)|number_format(1, ',', ' ') ~ ' Ko' %}
+                {% else %}
+                    {% set readableSize = fileSize ~ ' octets' %}
+                {% endif %}
+            {% endif %}
+
+            <div class="border rounded-3 p-3 bg-light">
+                {# -------------------------------------------------------------
+                   En-tête fichier
+                   ------------------------------------------------------------- #}
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                    <div>
+                        <div class="fw-semibold">
+                            {{ fileName }}
+                        </div>
+
+                        <div class="small text-muted">
+                            {{ readableType }}
+                            {% if attachmentCategory %}
+                                • {{ attachmentCategory }}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if isPdf %}
+                        <span class="badge text-bg-danger">PDF</span>
+                    {% elseif isImage %}
+                        <span class="badge text-bg-info">Image</span>
+                    {% else %}
+                        <span class="badge text-bg-secondary">Fichier</span>
+                    {% endif %}
+                </div>
+
+                {# -------------------------------------------------------------
+                   Métadonnées
+                   ------------------------------------------------------------- #}
+                <div class="small text-muted mb-3">
+                    {% if mimeType %}
+                        <div><strong>Type MIME :</strong> {{ mimeType }}</div>
+                    {% endif %}
+
+                    {% if readableSize %}
+                        <div><strong>Taille :</strong> {{ readableSize }}</div>
+                    {% endif %}
+                </div>
+
+                {# -------------------------------------------------------------
+                   Aperçu image si possible
+                   ------------------------------------------------------------- #}
+                {% if isImage and publicUrl %}
+                    <div class="mb-3">
+                        <a href="{{ publicUrl }}" target="_blank" rel="noopener noreferrer">
+                            <img
+                                src="{{ publicUrl }}"
+                                alt="{{ fileName }}"
+                                class="img-fluid rounded border"
+                                style="max-height: 220px; object-fit: contain;"
+                            >
+                        </a>
+                    </div>
+                {% endif %}
+
+                {# -------------------------------------------------------------
+                   Actions
+                   ------------------------------------------------------------- #}
+                {% if publicUrl %}
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a
+                            href="{{ publicUrl }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-sm btn-primary"
+                        >
+                            Ouvrir le fichier
+                        </a>
+
+                        {% if isPdf %}
+                            <span class="small text-muted align-self-center">
+                                Le PDF s’ouvrira dans un nouvel onglet si le navigateur le permet.
+                            </span>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <span class="text-danger small">URL du fichier introuvable.</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

@@ -151,14 +151,23 @@ class WorkshopRequestController extends AbstractController
                     | Hash du fichier final déplacé
                     |--------------------------------------------------------------
                     */
-                    /*if (is_file($fullStoredPath) && is_readable($fullStoredPath)) {
+                    if (is_file($fullStoredPath) && is_readable($fullStoredPath)) {
                         $attachment->setFileHash(hash_file('sha256', $fullStoredPath));
                     }
 
-                    $workshopRequest->addAttachment($attachment);*/
+                    $workshopRequest->addAttachment($attachment);
                 }
 
+                /*
+                |--------------------------------------------------------------
+                | Enregistrement
+                |--------------------------------------------------------------
+                */
                 $entityManager->persist($workshopRequest);
+
+                /* test*/
+         
+
                 $entityManager->flush();
 
                 $this->addFlash('success', 'La demande de test a bien été enregistrée.');
