@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\SupportTicket;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -16,28 +17,35 @@ class SupportTicketRepository extends ServiceEntityRepository
         parent::__construct($registry, SupportTicket::class);
     }
 
-    //    /**
-    //     * @return SupportTicket[] Returns an array of SupportTicket objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('s')
-    //            ->andWhere('s.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('s.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    /**
+     * Retourne les tickets d'un utilisateur,
+     * du plus récent au plus ancien.
+     *
+     * @return SupportTicket[]
+     */
+    public function findByUserOrderedByNewest(User $user): array
+    {
+        return $this->createQueryBuilder('ticket')
+            ->leftJoin('ticket.order', 'o')
+            ->addSelect('o')
+            ->andWhere('ticket.user = :user')
+            ->setParameter('user', $user)
+            ->orderBy('ticket.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 
-    //    public function findOneBySomeField($value): ?SupportTicket
-    //    {
-    //        return $this->createQueryBuilder('s')
-    //            ->andWhere('s.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    public function findOneByIdAndUser(int $ticketId, User $user): ?SupportTicket
+    {
+        return $this->createQueryBuilder('ticket')
+            ->leftJoin('ticket.order', 'o')
+            ->addSelect('o')
+            ->andWhere('ticket.id = :ticketId')
+            ->andWhere('ticket.user = :user')
+            ->setParameter('ticketId', $ticketId)
+            ->setParameter('user', $user)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }
