@@ -262,7 +262,7 @@ class AccountApiController extends AbstractController
         );
 
         $data = array_map(
-            fn (Order $order): array => $this->serializeOrder($order),
+            fn(Order $order): array => $this->serializeOrder($order),
             $orders
         );
 
@@ -309,50 +309,132 @@ class AccountApiController extends AbstractController
         ]);
     }
 
-        /**
-         * Sérialise une commande pour le front.
-         *
-         * On inclut :
-         * - les infos principales de la commande
-         * - le snapshot de livraison figé dans Order
-         * - les lignes figées dans OrderItem
-         */
-        private function serializeOrder(Order $order): array
-        {
-            $items = array_map(
-                static function ($orderItem): array {
-                    return [
-                        'id' => $orderItem->getId(),
-                        'productId' => $orderItem->getProduct()?->getId(),
-                        'productTitle' => $orderItem->getProductTitle(),
-                        'productSlug' => $orderItem->getProductSlug(),
-                        'productImage' => $orderItem->getProductImage(),
-                        'quantity' => $orderItem->getQuantity(),
-                        'unitPriceCents' => $orderItem->getUnitPriceCents(),
-                        'lineTotalCents' => $orderItem->getLineTotalCents(),
-                    ];
-                },
-                $order->getItems()->toArray()
-            );
+    /**
+     * Sérialise une commande pour le front.
+     *
+     * On inclut :
+     * - les infos principales de la commande
+     * - le snapshot de livraison figé dans Order
+     * - les lignes figées dans OrderItem
+     */
+    private function serializeOrder(Order $order): array
+    {
+        $items = array_map(
+            static function ($orderItem): array {
+                return [
+                    'id' => $orderItem->getId(),
+                    'productId' => $orderItem->getProduct()?->getId(),
+                    'productTitle' => $orderItem->getProductTitle(),
+                    'productSlug' => $orderItem->getProductSlug(),
+                    'productImage' => $orderItem->getProductImage(),
+                    'quantity' => $orderItem->getQuantity(),
+                    'unitPriceCents' => $orderItem->getUnitPriceCents(),
+                    'lineTotalCents' => $orderItem->getLineTotalCents(),
+                ];
+            },
+            $order->getItems()->toArray()
+        );
 
-            return [
-                'id' => $order->getId(),
-                'email' => $order->getEmail(),
-                'status' => $order->getStatus(),
-                'totalCents' => $order->getTotalCents(),
-                'currency' => $order->getCurrency(),
-                'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
+        return [
+            'id' => $order->getId(),
+            'email' => $order->getEmail(),
+            'status' => $order->getStatus(),
+            'totalCents' => $order->getTotalCents(),
+            'currency' => $order->getCurrency(),
+            'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
 
-                'shippingFullName' => $order->getShippingFullName(),
-                
-                'shippingAddressLine' => $order->getShippingAddressLine(),
-                'shippingPostalCode' => $order->getShippingPostalCode(),
-                'shippingCity' => $order->getShippingCity(),
-                'shippingCountry' => $order->getShippingCountry(),
-                'shippingPhone' => $order->getShippingPhone(),
-                'shippingInstructions' => $order->getShippingInstructions(),
+            'shippingFullName' => $order->getShippingFullName(),
 
-                'items' => $items,
-            ];
+            'shippingAddressLine' => $order->getShippingAddressLine(),
+            'shippingPostalCode' => $order->getShippingPostalCode(),
+            'shippingCity' => $order->getShippingCity(),
+            'shippingCountry' => $order->getShippingCountry(),
+            'shippingPhone' => $order->getShippingPhone(),
+            'shippingInstructions' => $order->getShippingInstructions(),
+
+            'items' => $items,
+        ];
+    }
+    /**
+     * Retourne la liste des paiements de l'utilisateur connecté.
+     *
+     * En V1, on s'appuie sur les commandes comme source de vérité
+     * pour afficher l'état des paiements dans l'espace compte.
+     *
+     * Cela évite de créer une nouvelle entité ou de casser
+     * les routes commandes déjà en place.
+     */
+    #[Route('/api/account/payments', name: 'api_account_payments', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function payments(OrderRepository $orderRepository): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            return $this->json([
+                'message' => 'Utilisateur non authentifié',
+            ], Response::HTTP_UNAUTHORIZED);
         }
+
+        $orders = $orderRepository->findBy(
+            ['user' => $user],
+            ['createdAt' => 'DESC']
+        );
+
+        $payments = array_map(
+            fn(Order $order): array => $this->serializePayment($order),
+            $orders
+        );
+
+        return $this->json([
+            'payments' => $payments,
+            'total' => count($payments),
+        ], Response::HTTP_OK);
+    }
+
+    /**
+     * Sérialise une commande sous l'angle "paiement".
+     *
+     * On expose uniquement les informations utiles
+     * pour la page "Vos paiements" côté front.
+     */
+    private function serializePayment(Order $order): array
+    {
+        return [
+            'id' => $order->getId(),
+            'orderId' => $order->getId(),
+            'status' => $order->getStatus(),
+            'paymentStatusLabel' => $this->getPaymentLabel($order->getStatus()),
+            'totalCents' => $order->getTotalCents(),
+            'currency' => $order->getCurrency(),
+            'stripeSessionId' => $order->getStripeSessionId(),
+            'stripePaymentIntentId' => $order->getStripePaymentIntentId(),
+            'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
+            'updatedAt' => $order->getUpdatedAt()?->format(DATE_ATOM),
+            'paidAt' => $order->getPaidAt()?->format(DATE_ATOM),
+            'itemsCount' => $order->getItems()->count(),
+
+            // Indicateurs pratiques pour le front.
+            'isPaid' => $order->getStatus() === Order::STATUS_PAID,
+            'canRetryPayment' => $order->getStatus() === Order::STATUS_PENDING_PAYMENT,
+            'isFailed' => $order->getStatus() === Order::STATUS_FAILED,
+            'isCancelled' => $order->getStatus() === Order::STATUS_CANCELLED,
+            'isRefunded' => $order->getStatus() === Order::STATUS_REFUNDED,
+        ];
+    }
+
+    /**
+     * Convertit un statut technique en libellé lisible.
+     */
+    private function getPaymentLabel(string $status): string
+    {
+        return match ($status) {
+            Order::STATUS_PENDING_PAYMENT => 'En attente de paiement',
+            Order::STATUS_PAID => 'Payé',
+            Order::STATUS_FAILED => 'Paiement échoué',
+            Order::STATUS_CANCELLED => 'Annulé',
+            Order::STATUS_REFUNDED => 'Remboursé',
+            default => 'Statut inconnu',
+        };
+    }
 }
