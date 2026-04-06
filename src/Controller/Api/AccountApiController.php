@@ -9,6 +9,7 @@ use App\Entity\Product;
 use App\Entity\User;
 use App\Repository\CartRepository;
 use App\Repository\OrderRepository;
+use App\Service\Order\OrderActionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,6 +19,15 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class AccountApiController extends AbstractController
 {
+    /**
+     * Service centralisant les actions disponibles
+     * sur une commande (annulation, modification, suivi, etc.).
+     */
+    public function __construct(
+        private readonly OrderActionService $orderActionService,
+    ) {
+    }
+
     /**
      * Retourne les informations du compte actuellement connecté.
      */
@@ -41,11 +51,17 @@ class AccountApiController extends AbstractController
             'roles' => $user->getRoles(),
         ]);
     }
+
     /**
      * Permet de recommander une ancienne commande :
      * - on relit les OrderItem
      * - on récupère les Product encore valides
      * - on les ajoute dans le panier courant
+     *
+     * Important :
+     * ce flux reste volontairement simple pour l'instant.
+     * Il ne réinjecte pas encore proprement les offres
+     * ni les personnalisations complexes.
      */
     #[IsGranted('ROLE_USER')]
     #[Route('/api/account/orders/{id}/reorder', name: 'api_account_order_reorder', methods: ['POST'])]
@@ -239,6 +255,7 @@ class AccountApiController extends AbstractController
      * - les informations principales
      * - les lignes de commande
      * - le snapshot figé de livraison
+     * - les actions disponibles calculées côté back
      *
      * Important :
      * on lit les données figées de la commande
@@ -316,6 +333,11 @@ class AccountApiController extends AbstractController
      * - les infos principales de la commande
      * - le snapshot de livraison figé dans Order
      * - les lignes figées dans OrderItem
+     * - les actions disponibles calculées côté back
+     *
+     * Ainsi, le front ne dépend plus uniquement
+     * de sa propre logique de statut pour afficher
+     * les boutons du bloc "Informations sur la commande".
      */
     private function serializeOrder(Order $order): array
     {
@@ -344,7 +366,6 @@ class AccountApiController extends AbstractController
             'createdAt' => $order->getCreatedAt()?->format(DATE_ATOM),
 
             'shippingFullName' => $order->getShippingFullName(),
-
             'shippingAddressLine' => $order->getShippingAddressLine(),
             'shippingPostalCode' => $order->getShippingPostalCode(),
             'shippingCity' => $order->getShippingCity(),
@@ -352,9 +373,17 @@ class AccountApiController extends AbstractController
             'shippingPhone' => $order->getShippingPhone(),
             'shippingInstructions' => $order->getShippingInstructions(),
 
+            /**
+             * Bloc central pour le front :
+             * c'est désormais le back qui dit
+             * quelles actions sont autorisées.
+             */
+            'availableActions' => $this->orderActionService->getAvailableActions($order),
+
             'items' => $items,
         ];
     }
+
     /**
      * Retourne la liste des paiements de l'utilisateur connecté.
      *
