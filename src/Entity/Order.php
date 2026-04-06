@@ -138,6 +138,16 @@ class Order
      */
     #[ORM\OneToMany(mappedBy: 'order', targetEntity: SupportTicket::class, orphanRemoval: true)]
     private Collection $supportTickets;
+    
+    
+    /**
+     * Expédition logistique liée à la commande.
+     *
+     * On reste volontairement sur une relation OneToOne
+     * pour ne pas complexifier le projet trop tôt.
+     */
+    #[ORM\OneToOne(mappedBy: 'order', targetEntity: Shipment::class, cascade: ['persist', 'remove'])]
+    private ?Shipment $shipment = null;
 
     public function __construct()
     {
@@ -502,6 +512,26 @@ class Order
             if ($supportTicket->getOrder() === $this) {
                 $supportTicket->setOrder(null);
             }
+        }
+
+        return $this;
+    }
+
+
+    /**
+     * Retourne l’expédition liée à cette commande.
+     */
+        public function getShipment(): ?Shipment
+    {
+        return $this->shipment;
+    }
+
+    public function setShipment(?Shipment $shipment): static
+    {
+        $this->shipment = $shipment;
+
+        if ($shipment !== null && $shipment->getOrder() !== $this) {
+            $shipment->setOrder($this);
         }
 
         return $this;

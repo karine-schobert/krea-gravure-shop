@@ -130,6 +130,12 @@ class DashboardController extends AbstractDashboardController
             ->setController(WorkshopRequestCrudController::class)
             ->setAction(Action::INDEX)
             ->generateUrl();
+        
+        $shipmentUrl = $adminUrlGenerator
+            ->unsetAll()
+            ->setController(ShipmentCrudController::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl();
 
         // =========================================================
         // CATALOGUE
@@ -154,8 +160,10 @@ class DashboardController extends AbstractDashboardController
 
         yield MenuItem::subMenu('Gestion commerciale', 'fa fa-shopping-cart')->setSubItems([
             MenuItem::linkToUrl('Commandes', 'fa fa-shopping-cart', $orderUrl),
+            MenuItem::linkToUrl('Expéditions', 'fa fa-truck', $shipmentUrl),
             MenuItem::linkToUrl('Clients', 'fa fa-users', $customerUrl),
-        ]);
+]);
+    
 
         // =========================================================
         // CONTENU
