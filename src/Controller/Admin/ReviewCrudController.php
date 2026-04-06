@@ -9,6 +9,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
@@ -35,49 +36,57 @@ class ReviewCrudController extends AbstractCrudController
                 'id',
                 'rating',
                 'comment',
+                'status',
                 'user.email',
                 'user.firstName',
                 'user.lastName',
                 'product.title',
                 'product.slug',
+                'orderItem.id',
             ])
             ->setPaginatorPageSize(20)
 
-            // Affiche les actions directement sur la ligne
+            /**
+             * On garde l’affichage inline des actions
+             * pour respecter ton rendu admin actuel.
+             */
             ->showEntityActionsInlined();
     }
 
     public function configureActions(Actions $actions): Actions
     {
         return $actions
-            // Ajoute le bouton "Consulter" sur la page index
+            /**
+             * Bouton détail sur l’index
+             */
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
 
-            // Force l'ordre visible des actions sur l'index
+            /**
+             * On garde ton ordre visuel actuel
+             */
             ->reorder(Crud::PAGE_INDEX, [Action::DETAIL, Action::EDIT, Action::DELETE])
 
-            // Bouton consulter
+            /**
+             * Respect de tes classes CSS custom
+             */
             ->update(Crud::PAGE_INDEX, Action::DETAIL, function (Action $action) {
                 return $action
                     ->setLabel('Consulter')
                     ->addCssClass('crud-action-show');
             })
 
-            // Bouton modifier
             ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
                 return $action
                     ->setLabel('Modifier')
                     ->addCssClass('crud-action-edit');
             })
 
-            // Bouton supprimer
             ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
                 return $action
                     ->setLabel('Supprimer')
                     ->addCssClass('crud-action-delete');
             })
 
-            // Boutons sur la page détail
             ->update(Crud::PAGE_DETAIL, Action::EDIT, function (Action $action) {
                 return $action
                     ->setLabel('Modifier')
@@ -96,7 +105,6 @@ class ReviewCrudController extends AbstractCrudController
                     ->addCssClass('crud-action-back');
             })
 
-            // Boutons sur la page édition
             ->update(Crud::PAGE_EDIT, Action::SAVE_AND_RETURN, function (Action $action) {
                 return $action->setLabel('Enregistrer et revenir');
             })
@@ -105,7 +113,10 @@ class ReviewCrudController extends AbstractCrudController
                 return $action->setLabel('Enregistrer et continuer');
             })
 
-            // Les avis viennent du front client, pas de création manuelle en admin
+            /**
+             * Les avis viennent du front client.
+             * On empêche donc la création manuelle côté admin.
+             */
             ->disable(Action::NEW);
     }
 
@@ -114,18 +125,44 @@ class ReviewCrudController extends AbstractCrudController
         $id = IdField::new('id')
             ->hideOnForm();
 
+        /**
+         * User et Product peuvent rester en autocomplete
+         * si leurs CRUD existent déjà dans l’admin.
+         */
         $user = AssociationField::new('user', 'Client')
             ->autocomplete();
 
         $product = AssociationField::new('product', 'Produit')
             ->autocomplete();
 
+        /**
+         * Important :
+         * orderItem ne doit PAS être en autocomplete ici,
+         * sinon EasyAdmin cherche un CRUD dédié.
+         *
+         * On l’affiche seulement en détail.
+         */
+        $orderItem = AssociationField::new('orderItem', 'Ligne de commande')
+            ->onlyOnDetail();
+
         $rating = IntegerField::new('rating', 'Note');
+
+        $status = ChoiceField::new('status', 'Statut')
+            ->setChoices([
+                'En attente' => Review::STATUS_PENDING,
+                'Approuvé' => Review::STATUS_APPROVED,
+                'Refusé' => Review::STATUS_REJECTED,
+            ])
+            ->renderExpanded(false)
+            ->renderAsNativeWidget(false);
 
         $comment = TextareaField::new('comment', 'Commentaire')
             ->hideOnIndex();
 
         $createdAt = DateTimeField::new('createdAt', 'Créé le')
+            ->hideOnForm();
+
+        $updatedAt = DateTimeField::new('updatedAt', 'Modifié le')
             ->hideOnForm();
 
         if (Crud::PAGE_INDEX === $pageName) {
@@ -134,6 +171,7 @@ class ReviewCrudController extends AbstractCrudController
                 $user,
                 $product,
                 $rating,
+                $status,
                 $createdAt,
             ];
         }
@@ -143,18 +181,22 @@ class ReviewCrudController extends AbstractCrudController
                 $id,
                 $user,
                 $product,
+                $orderItem,
                 $rating,
+                $status,
                 $comment,
                 $createdAt,
+                $updatedAt,
             ];
         }
 
+        /**
+         * PAGE_EDIT :
+         * on limite volontairement l’édition admin
+         * aux champs utiles de modération.
+         */
         return [
-            $user,
-            $product,
-            $rating,
-            $comment,
-            $createdAt,
+            $status,
         ];
     }
 
@@ -163,7 +205,10 @@ class ReviewCrudController extends AbstractCrudController
         return $filters
             ->add('user')
             ->add('product')
+            ->add('orderItem')
             ->add('rating')
-            ->add('createdAt');
+            ->add('status')
+            ->add('createdAt')
+            ->add('updatedAt');
     }
 }

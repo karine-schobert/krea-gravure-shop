@@ -48,7 +48,6 @@ security:
     - { path: ^/api/register, roles: PUBLIC_ACCESS }
     - { path: ^/api/health, roles: PUBLIC_ACCESS }
 
-    
     - { path: ^/api/homepage, roles: PUBLIC_ACCESS }
     - { path: ^/api/shop/page, roles: PUBLIC_ACCESS }
 
@@ -57,18 +56,21 @@ security:
     - { path: ^/api/categories$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/[a-z0-9-]+$, roles: PUBLIC_ACCESS }
     - { path: ^/api/categories/.+/products$, roles: PUBLIC_ACCESS }
-    
-    - { path: ^/api/cart, roles: PUBLIC_ACCESS }
     - { path: ^/api/seasons, roles: PUBLIC_ACCESS }
 
+    - { path: ^/api/cart, roles: PUBLIC_ACCESS }
     - { path: ^/api/workshop-requests, roles: PUBLIC_ACCESS }
 
     - { path: ^/api/checkout/session, roles: IS_AUTHENTICATED_FULLY }
+
+    # Compte client explicite
+    - { path: ^/api/account, roles: IS_AUTHENTICATED_FULLY }
+
     - { path: ^/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private/admin, roles: ROLE_ADMIN }
     - { path: ^/api/private, roles: ROLE_USER }
 
-    # 🔥 CELLE-CI DOIT RESTER EN DERNIER
+    # Doit rester en dernier
     - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
